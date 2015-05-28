@@ -1,0 +1,3 @@
+[submodule "openMVG_Rig/lib/libfastcal"]
+	path = openMVG_Rig/lib/libfastcal
+	url = https://github.com/FoxelSA/libfastcal.git
