@@ -1,5 +1,5 @@
  #
- #  listomvg
+ #  OPENMVG_RIG
  #
  # Copyright (c) 2013-2014 FOXEL SA - http://foxel.ch
  # Please read <http://foxel.ch/license> for more information.
@@ -36,23 +36,20 @@
  #      Attribution" section of <http://foxel.ch/license>.
  #/
 
-
-cmake_minimum_required(VERSION 2.8 FATAL_ERROR)
-
 # ==============================================================================
 # Build Executable
 # ==============================================================================
-add_executable(listomvg
+add_executable(openMVGRig_create_list
                     tools.cpp
                     types.cpp
                     list_utils.cpp
                     list.cpp
                     )
-target_link_libraries(listomvg
-  ${LISTOMVG_LIBRARY_LIST}
+target_link_libraries(openMVGRig_create_list
+  ${OPENMVG_RIG_LIBRARY_LIST}
 )
 
-add_dependencies(listomvg fastcal stlplus)
-set_target_properties( listomvg PROPERTIES RUNTIME_OUTPUT_DIRECTORY .. )
+add_dependencies(openMVGRig_create_list fastcal stlplus)
+set_property(TARGET openMVGRig_create_list PROPERTY FOLDER software)
 
-install(TARGETS listomvg DESTINATION ${CMAKE_INSTALL_PREFIX}/bin)
+install(TARGETS openMVGRig_create_list DESTINATION ${CMAKE_INSTALL_PREFIX}/bin)

@@ -39,7 +39,7 @@
 
 cmake_minimum_required(VERSION 2.8 FATAL_ERROR)
 
-project(OPENMVG_RIG C CXX)
+project(openMVG_Rig C CXX)
 
 # ==============================================================================
 #  C / C++ flags
@@ -112,7 +112,7 @@ set(LIBSTL_LIBS ${CMAKE_CURRENT_SOURCE_DIR}/lib/stlplus3/libstlplus.a)
 # Include directories
 # ==============================================================================
 include_directories(
-  ${OPENMVG_RIG_SOURCE_DIR}
+  ${OPENMVG_RIG_SOURCE_DIR}/openMVGRig_create_list
   ${LIBFASTCAL_INCLUDE_DIR}
   ${CMAKE_CURRENT_SOURCE_DIR}/lib/cmdLine
   ${CMAKE_CURRENT_SOURCE_DIR}/lib/stlAddition
@@ -130,6 +130,6 @@ set(OPENMVG_RIG_LIBRARY_LIST
 )
 
 # ==============================================================================
-# Build Executable
+# Go to subdirectory
 # ==============================================================================
 add_subdirectory(openMVGRig_create_list)
