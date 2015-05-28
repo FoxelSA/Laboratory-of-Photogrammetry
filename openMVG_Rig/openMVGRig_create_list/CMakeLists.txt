@@ -50,6 +50,6 @@ target_link_libraries(openMVGRig_create_list
 )
 
 add_dependencies(openMVGRig_create_list fastcal stlplus)
-set_property(TARGET openMVGRig_create_list PROPERTY FOLDER software)
+set(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/software)
 
 install(TARGETS openMVGRig_create_list DESTINATION ${CMAKE_INSTALL_PREFIX}/bin)
