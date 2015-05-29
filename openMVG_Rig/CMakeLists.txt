@@ -46,7 +46,10 @@ add_definitions(-std=c++11)
 #  C / C++ flags
 # ==============================================================================
 set(CMAKE_CXX_COMPILER c++)
-set(CMAKE_BUILD_TYPE Debug)
+# By default build in Release mode
+IF(NOT CMAKE_BUILD_TYPE AND NOT MSVC)
+  SET(CMAKE_BUILD_TYPE "Release")
+ENDIF(NOT CMAKE_BUILD_TYPE AND NOT MSVC)
 
 if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU" OR
     "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
@@ -82,7 +85,6 @@ endif (OPENMP_FOUND)
 # ------------------------------------------------------------------------------
 # pkgconfig / opencv
 # ------------------------------------------------------------------------------
-find_package(PkgConfig)
 find_package(OpenMVG REQUIRED)
 
 # ------------------------------------------------------------------------------
