@@ -204,7 +204,7 @@ bool Load_gpsimu_cereal( SfM_Gps_Data & data,
 #endif
 
   return true;
-};
+}
 
 // create map timestamp -> rotation / gps informations
 bool create_gps_imu_map( SfM_Gps_Data & data,
@@ -296,6 +296,6 @@ bool create_gps_imu_map( SfM_Gps_Data & data,
   else
       return false;
 
-};
+}
 
 #endif

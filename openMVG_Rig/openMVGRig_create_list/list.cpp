@@ -113,7 +113,8 @@ int main(int argc, char **argv)
     sOutputDir = "",
     sMountPoint = "",
     sTimestampLow= "",
-    sTimestampUp="";
+    sTimestampUp="",
+    sGpsFileName="";
 
   li_Real_t     focalPixPermm = -1.0;
   bool          bRigidRig     = true;
@@ -129,6 +130,7 @@ int main(int argc, char **argv)
   cmd.add( make_option('f', focalPixPermm, "focal") );
   cmd.add( make_option('a', sTimestampLow, "lowerBound") );
   cmd.add( make_option('b', sTimestampUp, "upperBound") );
+  cmd.add( make_option('g', sGpsFileName, "gps"));
 
   try {
       if (argc == 1) throw std::string("Invalid command line parameter.");
@@ -149,6 +151,7 @@ int main(int argc, char **argv)
       << "[-a|--lowerBound \n"
       << "[-b|--upperBound \n"
       << "[-f|--focal] (pixels)\n"
+      << "[-g|--gps] GPU/IMU json file\n"
       << std::endl;
 
       std::cerr << s << std::endl;
@@ -196,18 +199,40 @@ int main(int argc, char **argv)
            std::vector< li_Size_t > keptChan;
            loadChannelFile( keptChan, sChannelFile );
 
-           //create and export list to folder
-           bool isExported =  computeInstrinsicPerImages(
-                                   vec_image,
-                                   vec_sensorData,
-                                   keptChan,
-                                   sImageDir,
-                                   sOutputDir,
-                                   focalPixPermm,
-                                   bUseCalibPrincipalPoint,
-                                   bRigidRig,
-                                   sTimestampLow,
-                                   sTimestampUp);
+           bool isExported = false;
+
+           if( sGpsFileName.empty())
+           {
+               //create and export list to folder
+               isExported =  computeInstrinsicPerImages(
+                                       vec_image,
+                                       vec_sensorData,
+                                       keptChan,
+                                       sImageDir,
+                                       sOutputDir,
+                                       focalPixPermm,
+                                       bUseCalibPrincipalPoint,
+                                       bRigidRig,
+                                       sTimestampLow,
+                                       sTimestampUp);
+            }
+            else
+            {
+              //create and export list to folder
+              isExported =  computeInstrinsicGPSPerImages(
+                                      vec_image,
+                                      vec_sensorData,
+                                      keptChan,
+                                      sImageDir,
+                                      sOutputDir,
+                                      sGpsFileName,
+                                      focalPixPermm,
+                                      bUseCalibPrincipalPoint,
+                                      bRigidRig,
+                                      sTimestampLow,
+                                      sTimestampUp);
+
+            }
 
             // do final check to ensure all went well
             if( isExported )

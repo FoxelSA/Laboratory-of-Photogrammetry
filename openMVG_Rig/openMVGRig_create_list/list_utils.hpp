@@ -217,6 +217,44 @@ bool computeInstrinsicPerImages(
                       std::string& sTimestampUpper);
 
 /*********************************************************************
+ *  compute camera and rig intrinsic parameters
+ *
+ *********************************************************************/
+
+/*! \brief Compute intrinsic needed by openMVG for each image
+ *
+ * This function parse image list and create the associated information needed by openMVG
+ *
+ * \param vec_image           Image list
+ * \param vec_sensorData      Calibration data list
+ * \param keptChan            List of kept channel
+ * \param sImageDir           Directory containing the images
+ * \param sOutputDir          Directory containing the lists.txt file
+ * \param sGpsFile            Filename of the GPS / imu JSON file
+ * \param focalPixPermm       Focal length in pixel per mm
+ * \param bUsePrincipalPoint  bool value indicating if we use (or not) principal point from calibration
+ * \param bUSeRigidRig        bool value indicating if we use rig structure or not
+ * \param sTimestampLower     Lower bound for timestamp interval
+ * \param sTimestampUpper     Upper bound for timestamp interval
+ *
+ * \return bool value telling if we have generated the file lists.txt
+*/
+
+bool computeInstrinsicGPSPerImages(
+            std::vector<std::string> & vec_image,
+            const std::vector< sensorData > & vec_sensorData,
+            const std::vector< li_Size_t >  & keptChan,
+            const std::string & sImageDir,
+            const std::string & sOutputDir,
+            const std::string & sGpsFile,
+            const double & focalPixPermm,
+            const bool & bUsePrincipalPoint,
+            const bool & bUseRigidRig,
+            std::string& sTimestampLower,
+            std::string& sTimestampUpper);
+
+
+/*********************************************************************
  *  compute image intrinsic parameter
  *
  *********************************************************************/

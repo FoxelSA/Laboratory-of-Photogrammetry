@@ -40,6 +40,7 @@
 cmake_minimum_required(VERSION 2.6 FATAL_ERROR)
 
 project(openMVG_Rig C CXX)
+add_definitions(-std=c++11)
 
 # ==============================================================================
 #  C / C++ flags
