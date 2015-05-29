@@ -203,13 +203,6 @@ struct sensorData
 /// The structure used to store intrinsic per image
 typedef std::pair<std::string, camInformation > imageNameAndIntrinsic;
 
- // supported image format
- enum Format {
-   Pnm, Png, Jpg, Tiff, Unknown
- };
-
- Format GetFormat(const char *c);
-
  bool operator==(const imageNameAndIntrinsic& i1, const imageNameAndIntrinsic& i2);
 
  bool operator!=(const imageNameAndIntrinsic& i1, const imageNameAndIntrinsic& i2);

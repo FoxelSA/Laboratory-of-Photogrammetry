@@ -41,42 +41,6 @@
 
 using namespace std;
 
-
-// lexicographical format used
-static bool CmpFormatExt(const char *a, const char *b)
-   {
-      size_t len_a = strlen(a);
-      size_t len_b = strlen(b);
-      if (len_a != len_b) return false;
-      for (size_t i = 0; i < len_a; ++i)
-        if (tolower(a[i]) != tolower(b[i]))
-          return false;
-          return true;
-   }
-
-
-// get image format
-Format GetFormat(const char *c)
-    {
-        const char *p = strrchr (c, '.');
-
-        if (p == NULL)
-          return Unknown;
-
-          if (CmpFormatExt(p, ".png")) return Png;
-          if (CmpFormatExt(p, ".ppm")) return Pnm;
-          if (CmpFormatExt(p, ".pgm")) return Pnm;
-          if (CmpFormatExt(p, ".pbm")) return Pnm;
-          if (CmpFormatExt(p, ".pnm")) return Pnm;
-          if (CmpFormatExt(p, ".jpg")) return Jpg;
-          if (CmpFormatExt(p, ".jpeg")) return Jpg;
-          if (CmpFormatExt(p, ".tif")) return Tiff;
-          if (CmpFormatExt(p, ".tiff")) return Tiff;
-
-          cerr << "Error: Couldn't open " << c << " Unknown file format" << std::endl;
-          return Unknown;
-    }
-
   bool operator==(const imageNameAndIntrinsic& i1, const imageNameAndIntrinsic& i2) {
       return (i1.first == i2.first);
     }

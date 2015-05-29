@@ -419,54 +419,9 @@ void keepRepresentativeRigs(
           const std::string& sTimestampUpper )
 {
     // check the number of subcamera per rig. Remove less representated rigs.
-    li_Size_t   timeStamp = 0;
     std::map < std::string, std::vector<string> >::const_iterator iter_timestamp = mapSubcamPerTimestamp.begin();
     std::pair< std::map < li_Size_t , li_Size_t >::iterator, bool > insert_check;
     std::map < li_Size_t , li_Size_t >  occurencePerSubcamNumber;
-
-    // compute occurrence of each subcamera number
-    for( timeStamp = 0 ; timeStamp < mapSubcamPerTimestamp.size(); ++timeStamp )
-    {
-        //advance iterator
-        iter_timestamp = mapSubcamPerTimestamp.begin();
-        std::advance(iter_timestamp, timeStamp);
-
-        //update map
-        insert_check = occurencePerSubcamNumber.insert (
-        std::pair<li_Size_t, li_Size_t>( iter_timestamp->second.size(), occurencePerSubcamNumber.size()) );
-
-        if(insert_check.second == true )
-        {
-            occurencePerSubcamNumber[iter_timestamp->second.size() ] = 1 ;
-        }
-        else
-        {
-            occurencePerSubcamNumber[iter_timestamp->second.size() ] += 1 ;
-        }
-    }
-
-    // compute most representative number of subcamera
-    li_Size_t               k = 0;
-    li_Size_t               i = 0;
-    li_Size_t   max_Occurence = 0;
-    li_Size_t   subCamNumber  = 0;
-
-    std::map < li_Size_t , li_Size_t >::const_iterator iter_occurrence = occurencePerSubcamNumber.begin();
-
-    for( k = 0 ; k < occurencePerSubcamNumber.size(); ++k )
-    {
-        //advance iterator
-        iter_occurrence = occurencePerSubcamNumber.begin();
-        std::advance(iter_occurrence, k);
-
-        //update map
-        if( iter_occurrence->second > max_Occurence )
-        {
-            max_Occurence = iter_occurrence->second;
-            subCamNumber  = iter_occurrence->first;
-        }
-
-    }
 
     // check timestamp range validity
     bool validRange = isRangeValid(sTimestampLower, sTimestampUpper);
@@ -476,28 +431,24 @@ void keepRepresentativeRigs(
     }
 
     // remove rig not having the max occurrence subcam number
-    for( k = 0 ; k < mapSubcamPerTimestamp.size(); ++k )
+    for( size_t k = 0 ; k < mapSubcamPerTimestamp.size(); ++k )
     {
         //advance iterator
         iter_timestamp = mapSubcamPerTimestamp.begin();
         std::advance(iter_timestamp, k);
 
         //update map
-        if( iter_timestamp->second.size() != subCamNumber
-            || ( iter_timestamp->first < sTimestampLower && validRange )
+        if(    ( iter_timestamp->first < sTimestampLower && validRange )
             || ( iter_timestamp->first > sTimestampUpper && validRange )
           )
         {
-            for( i  = 0 ; i < iter_timestamp->second.size() ; ++i )
+            for( size_t i  = 0 ; i < iter_timestamp->second.size() ; ++i )
             {
                 imageToRemove.insert( iter_timestamp->second[i] );
             }
         }
     }
 
-    std::cout << "\n\n Max rig occurence is " << max_Occurence
-              << ", rig number of sub cameras is " << subCamNumber
-              << std::endl;
     std::cout << " OpenMVG will use " << imageNumber - imageToRemove.size()
               << " of " << imageNumber << " input images "
               << std::endl << std::endl;
@@ -646,7 +597,7 @@ bool computeInstrinsicPerImages(
       sImageFilename = stlplus::create_filespec( sImageDir, *iter_image );
 
       // Test if the image format is supported:
-      if (GetFormat(sImageFilename.c_str()) == Unknown)
+      if (openMVG::image::GetFormat(sImageFilename.c_str()) == openMVG::image::Unknown)
       {
           std::cerr << " Warning : image " << sImageFilename << "\'s format is not supported." << std::endl;
       }
@@ -793,8 +744,28 @@ bool computeInstrinsicPerImages(
 
         // update views / pose map
         const size_t  focal_id = map_intrinsicIdPerCamId[camI];
-        sfm_data.views[cpt] = std::make_shared<openMVG::sfm::View>(img_name, cpt, focal_id, cpt, cam.width, cam.height);
-        sfm_data.intrinsics[focal_id] = std::make_shared<openMVG::cameras::Pinhole_Intrinsic> (cam.width, cam.height, cam.focal, cam.px0, cam.py0 );
+        if( bUseRigidRig )
+            sfm_data.views[cpt] = std::make_shared<openMVG::sfm::Rig_View>(img_name, cpt, focal_id, cpt, cam.width, cam.height, mapRigPerImage[cam.sRigName], cam.subChan);
+        else
+            sfm_data.views[cpt] = std::make_shared<openMVG::sfm::Rig_View>(img_name, cpt, focal_id, cpt, cam.width, cam.height, cpt, cam.subChan);
+
+        // add camera subpose in case of rigid rig
+        if( bUseRigidRig )
+        {
+            // extract camera pose
+            const Mat3 Rc(cam.R);
+            const Vec3 Cc(cam.C);
+
+            // export it to file
+            const openMVG::geometry::Pose3  pose(Rc.transpose(), Cc);
+            sfm_data.intrinsics[focal_id] = std::make_shared<openMVG::cameras::Rig_Pinhole_Intrinsic> (cam.width, cam.height, cam.focal, cam.px0, cam.py0, pose);
+        }
+        else
+        {
+            // if no rig needed subpose is (I_3, 0)
+            const openMVG::geometry::Pose3  pose(Mat3::Identity(), Vec3::Zero());
+            sfm_data.intrinsics[focal_id] = std::make_shared<openMVG::cameras::Rig_Pinhole_Intrinsic> (cam.width, cam.height, cam.focal, cam.px0, cam.py0, pose);
+        }
         ++cpt;
     }
 
@@ -869,7 +840,7 @@ bool computeInstrinsicGPSPerImages(
         sImageFilename = stlplus::create_filespec( sImageDir, *iter_image );
 
         // Test if the image format is supported:
-        if (GetFormat(sImageFilename.c_str()) == Unknown)
+        if (openMVG::image::GetFormat(sImageFilename.c_str()) == openMVG::image::Unknown)
         {
             std::cerr << " Warning : image " << sImageFilename << "\'s format is not supported." << std::endl;
         }

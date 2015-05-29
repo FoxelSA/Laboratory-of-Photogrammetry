@@ -312,29 +312,5 @@ void keepRepresentativeRigs(
            const std::string& sTimestampUpper
 );
 
-/*********************************************************************
-*  write image list and intrinsic to file
-*
-*********************************************************************/
-
-/*! \brief Export calibration information to file lists.txt
-*
-* This function exported the calibration information to file lists.txt so
-* that openMVG could directly read it for the reconstruction
-*
-* \param imageToRemove       Set of image to remove
-* \param camAndIntrinsics    Set of pair (image name, image intrinsic)
-* \param listTXT             The stream that write the information to file lists.txt
-* \param bRigidRig           Use rigid rig or not for reconstruction
-*
-*/
-
-void exportToFile(
-          const std::set <string> & imageToRemove,
-          const std::set<imageNameAndIntrinsic>& camAndIntrinsics,
-          std::ofstream& listTXT,
-          const bool & bRigidRig
-);
-
 
 #endif /* LIST_UTILS_HPP_ */
