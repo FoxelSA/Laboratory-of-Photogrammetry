@@ -377,14 +377,14 @@ void computeImageIntrinsic(
         camInfo.py0   = vec_sensorData[sensor_index].lfpy0;
     }
 
+    // export channel
+    camInfo.subChan = sensor_index;
+
     // if rigid rig, add some informations
     if(bRigidRig)
     {
         // export rig index
         camInfo.sRigName = timestamp;
-
-        // export channel
-        camInfo.subChan = sensor_index;
 
         // export rotation
         camInfo.R[0] = vec_sensorData[sensor_index].R[0] ;
@@ -454,93 +454,6 @@ void keepRepresentativeRigs(
               << std::endl << std::endl;
 
 }
-/*********************************************************************
-*  write image list and intrinsic to file
-*
-*********************************************************************/
-
-void exportToFile(
-          const std::set <string> & imageToRemove,
-          const std::set<imageNameAndIntrinsic> & camAndIntrinsics,
-          std::ofstream & listTXT,
-          const bool & bRigidRig )
-{
-
-    C_Progress_display my_progress_bar_export( camAndIntrinsics.size(),
-    std::cout, "\n Write list in file lists.txt :\n");
-
-    // export list to file
-    li_Size_t   img       = 0;
-    std::set<imageNameAndIntrinsic>::const_iterator   iter = camAndIntrinsics.begin();
-    std::set<std::string>::iterator  it = imageToRemove.end();
-
-    for ( img = 0; img < (li_Size_t) camAndIntrinsics.size(); ++img)
-    {
-        //advance iterator
-        iter = camAndIntrinsics.begin();
-        std::advance(iter, img);
-
-        // create stream
-        std::ostringstream os;
-        os.precision(6);
-
-        // check if we have to keep this timestamp
-        it=imageToRemove.find(iter->first);
-        if ( it == imageToRemove.end() )
-        {
-            os << iter->first ;
-
-            // retreive intrinsic info
-            camInformation intrinsic = iter->second;
-
-            // export instrinsics
-            os << ";"  << intrinsic.width;
-            os << ";"  << intrinsic.height;
-
-            // export camera matrix
-            os << ";"  << intrinsic.focal;
-            os << ";"  << 0;
-            os << ";"  << intrinsic.px0;
-            os << ";"  << 0;
-            os << ";"  << intrinsic.focal;
-            os << ";"  << intrinsic.py0;
-            os << ";"  << 0;
-            os << ";"  << 0;
-            os << ";"  << 1;
-
-            if(bRigidRig)
-            {
-              // export rig Id and subchannel
-              os << ";" << intrinsic.sRigName;
-              os << ";" << intrinsic.subChan;
-
-              // export rotation matrix
-              os << ";"  << intrinsic.R[0];
-              os << ";"  << intrinsic.R[1];
-              os << ";"  << intrinsic.R[2];
-              os << ";"  << intrinsic.R[3];
-              os << ";"  << intrinsic.R[4];
-              os << ";"  << intrinsic.R[5];
-              os << ";"  << intrinsic.R[6];
-              os << ";"  << intrinsic.R[7];
-              os << ";"  << intrinsic.R[8];
-
-              // export camera center
-              os << ";"  << intrinsic.C[0];
-              os << ";"  << intrinsic.C[1];
-              os << ";"  << intrinsic.C[2];
-          }
-
-          os << endl;
-
-          listTXT << os.str();
-        }
-
-        ++my_progress_bar_export;
-    }
-
-}
-
 
 /*********************************************************************
 *  compute camera and rig intrinsic parameters
@@ -747,7 +660,7 @@ bool computeInstrinsicPerImages(
         if( bUseRigidRig )
             sfm_data.views[cpt] = std::make_shared<openMVG::sfm::Rig_View>(img_name, cpt, focal_id, cpt, cam.width, cam.height, mapRigPerImage[cam.sRigName], cam.subChan);
         else
-            sfm_data.views[cpt] = std::make_shared<openMVG::sfm::Rig_View>(img_name, cpt, focal_id, cpt, cam.width, cam.height, cpt, cam.subChan);
+            sfm_data.views[cpt] = std::make_shared<openMVG::sfm::View>(img_name, cpt, focal_id, cpt, cam.width, cam.height);
 
         // add camera subpose in case of rigid rig
         if( bUseRigidRig )
@@ -763,8 +676,7 @@ bool computeInstrinsicPerImages(
         else
         {
             // if no rig needed subpose is (I_3, 0)
-            const openMVG::geometry::Pose3  pose(Mat3::Identity(), Vec3::Zero());
-            sfm_data.intrinsics[focal_id] = std::make_shared<openMVG::cameras::Rig_Pinhole_Intrinsic> (cam.width, cam.height, cam.focal, cam.px0, cam.py0, pose);
+            sfm_data.intrinsics[focal_id] = std::make_shared<openMVG::cameras::Pinhole_Intrinsic> (cam.width, cam.height, cam.focal, cam.px0, cam.py0);
         }
         ++cpt;
     }
