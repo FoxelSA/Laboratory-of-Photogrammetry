@@ -201,38 +201,20 @@ int main(int argc, char **argv)
 
            bool isExported = false;
 
-           if( sGpsFileName.empty())
-           {
-               //create and export list to folder
-               isExported =  computeInstrinsicPerImages(
+           //create and export list to folder
+           isExported =  computeInstrinsicPerImages(
                                        vec_image,
                                        vec_sensorData,
                                        keptChan,
                                        sImageDir,
                                        sOutputDir,
+                                       sGpsFileName,
                                        focalPixPermm,
                                        bUseCalibPrincipalPoint,
                                        bRigidRig,
+                                       !sGpsFileName.empty(),
                                        sTimestampLow,
                                        sTimestampUp);
-            }
-            else
-            {
-              //create and export list to folder
-              isExported =  computeInstrinsicGPSPerImages(
-                                      vec_image,
-                                      vec_sensorData,
-                                      keptChan,
-                                      sImageDir,
-                                      sOutputDir,
-                                      sGpsFileName,
-                                      focalPixPermm,
-                                      bUseCalibPrincipalPoint,
-                                      bRigidRig,
-                                      sTimestampLow,
-                                      sTimestampUp);
-
-            }
 
             // do final check to ensure all went well
             if( isExported )

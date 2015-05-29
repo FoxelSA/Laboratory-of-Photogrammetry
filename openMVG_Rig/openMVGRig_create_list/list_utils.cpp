@@ -466,9 +466,11 @@ bool computeInstrinsicPerImages(
               const std::vector< li_Size_t >  & keptChan,
               const std::string & sImageDir,
               const std::string & sOutputDir,
+              const std::string & sGpsFile,
               const double & focalPixPermm,
               const bool & bUsePrincipalPoint,
               const bool & bUseRigidRig,
+              const bool & bUseGPS,
               std::string& sTimestampLower,
               std::string& sTimestampUpper)
 {
@@ -624,11 +626,28 @@ bool computeInstrinsicPerImages(
                           sTimestampLower,
                           sTimestampUpper);
 
-  //now create openMVG camera views on remaing rigs
-  openMVG::sfm::SfM_Data   sfm_data;
-  sfm_data.s_root_path = sImageDir;
-  std::map < size_t, size_t > map_intrinsicIdPerCamId;
-  size_t cpt = 0;
+  //load json file
+  SfM_Gps_Data  loaded_GPS_Data;
+  // create R/C map per timestamp
+  std::map < std::string, Mat3 >  map_rotationPerTimestamp;
+  std::map < std::string, Vec3 >  map_translationPerTimestamp;
+
+  if( bUseGPS )
+  {
+    //load json file
+    Load_gpsimu_cereal( loaded_GPS_Data, sGpsFile );
+
+    // create R/C map per timestamp
+    create_gps_imu_map( loaded_GPS_Data,
+                        map_rotationPerTimestamp,
+                        map_translationPerTimestamp );
+  }
+
+    //now create openMVG camera views on remaing rigs
+    openMVG::sfm::SfM_Data   sfm_data;
+    sfm_data.s_root_path = sImageDir;
+    std::map < size_t, size_t > map_intrinsicIdPerCamId;
+    size_t cpt = 0;
 
   // use only complete rigs
   std::set<std::string>::iterator  it = imageToRemove.end();
@@ -669,9 +688,32 @@ bool computeInstrinsicPerImages(
             const Mat3 Rc(cam.R);
             const Vec3 Cc(cam.C);
 
-            // export it to file
+            // update json data base
             const openMVG::geometry::Pose3  pose(Rc.transpose(), Cc);
             sfm_data.intrinsics[focal_id] = std::make_shared<openMVG::cameras::Rig_Pinhole_Intrinsic> (cam.width, cam.height, cam.focal, cam.px0, cam.py0, pose);
+
+            // if we have GPS / Informations
+            if ( bUseGPS )
+            {
+                // extract informations relative to image (timestamp, subcam rotation and optical center)
+                std::string  timestamp = cam.sRigName;
+
+                //now extract rig pose
+                Mat3 Rr = Mat3::Identity();
+                Vec3 Cr = Vec3::Zero();
+
+                if( map_rotationPerTimestamp.find(timestamp) != map_rotationPerTimestamp.end() )
+                {
+                    Rr = map_rotationPerTimestamp.at(timestamp);
+                }
+
+                if( map_translationPerTimestamp.find(timestamp) != map_translationPerTimestamp.end() )
+                {
+                    Cr = map_translationPerTimestamp.at(timestamp);
+                }
+
+                sfm_data.poses[cpt] = openMVG::geometry::Pose3(Rr,Cr);
+            }
         }
         else
         {
@@ -693,263 +735,5 @@ bool computeInstrinsicPerImages(
   }
   else
       return false;
-
-}
-
-/*********************************************************************
-*  compute camera and rig intrinsic parameters and camera poses using GPS / imu infos
-*
-*********************************************************************/
-
-bool computeInstrinsicGPSPerImages(
-            std::vector<std::string> & vec_image,
-            const std::vector< sensorData > & vec_sensorData,
-            const std::vector< li_Size_t >  & keptChan,
-            const std::string & sImageDir,
-            const std::string & sOutputDir,
-            const std::string & sGpsFile,
-            const double & focalPixPermm,
-            const bool & bUsePrincipalPoint,
-            const bool & bUseRigidRig,
-            std::string& sTimestampLower,
-            std::string& sTimestampUpper)
-{
-    //initialize rig map
-    std::map<std::string, li_Size_t>  mapRigPerImage;
-    std::sort(vec_image.begin(), vec_image.end());
-
-    // create output
-    std::set<imageNameAndIntrinsic> camAndIntrinsics;
-
-    C_Progress_display my_progress_bar_image( vec_image.size(),
-    std::cout, "\n List computation progession:\n");
-
-    // declare variable before loop
-    std::vector<std::string>::const_iterator iter_image = vec_image.begin();
-    std::pair< std::map<std::string, li_Size_t>::iterator, bool > ret;
-    std::map<std::string, std::vector<string> >  mapSubcamPerTimestamp;
-    std::vector<string>     splitted_name;
-    std::string             timestamp;
-    std::string             sImageFilename;
-    std::string             minTimestamp="";
-    std::string             maxTimestamp="";
-
-    li_Size_t sensor_index  = 0;
-    li_Size_t i             = 0;
-    li_Size_t idx           = 0;
-    bool      bKeepChannel  = false;
-
-    // do a parallel loop to improve CPU TIME
-    #pragma omp parallel firstprivate(iter_image, splitted_name, timestamp, sensor_index, i, bKeepChannel, sImageFilename )
-    #pragma omp for schedule(dynamic)
-    for ( idx = 0; idx < vec_image.size(); ++idx)
-    {
-        //advance iterator
-        iter_image = vec_image.begin();
-        std::advance(iter_image, idx);
-
-        // Read meta data to fill width height and focalPixPermm
-        sImageFilename = stlplus::create_filespec( sImageDir, *iter_image );
-
-        // Test if the image format is supported:
-        if (openMVG::image::GetFormat(sImageFilename.c_str()) == openMVG::image::Unknown)
-        {
-            std::cerr << " Warning : image " << sImageFilename << "\'s format is not supported." << std::endl;
-        }
-        else
-        {
-            // extract channel information from image name
-            splitted_name.clear();
-
-            split( *iter_image, "-", splitted_name );
-            sensor_index=atoi(splitted_name[1].c_str());
-
-            // now load image information and keep channel index and timestamp
-            timestamp=splitted_name[0];
-
-            #pragma omp critical
-            {
-                // update min timestamp
-                if( minTimestamp.empty() )
-                {
-                    minTimestamp = timestamp;
-                }
-                else
-                {
-                    minTimestamp = std::min( minTimestamp, timestamp);
-                }
-
-                // update max timestamp
-                if( maxTimestamp.empty() )
-                {
-                    maxTimestamp = timestamp;
-                }
-                else
-                {
-                    maxTimestamp = std::max( maxTimestamp, timestamp);
-                }
-            }
-
-            // if no channel file is given, keep all images
-            bKeepChannel = false;
-
-            if( keptChan.empty() )
-            {
-                bKeepChannel = true ;
-            }
-            else
-            {
-                for( i = 0 ; i < keptChan.size() ; ++i )
-                {
-                    if( sensor_index == keptChan[i] )
-                        bKeepChannel = true;
-                }
-            }
-
-            // export only kept channel
-            if( bKeepChannel )
-            {
-                #pragma omp critical
-                {
-                    // insert timestamp in the map
-                    ret = mapRigPerImage.insert ( std::pair<std::string, li_Size_t>(timestamp, mapRigPerImage.size()) );
-                    if(ret.second == true )
-                    {
-                        mapRigPerImage[timestamp] = mapRigPerImage.size()-1;
-                    }
-
-                    //insert image in map timestamp -> subcam
-                    mapSubcamPerTimestamp[timestamp].push_back( *iter_image );
-                }
-
-                // export camera infor
-                camInformation   camInfo;
-
-                computeImageIntrinsic(
-                    camInfo,
-                    vec_sensorData,
-                    timestamp,
-                    sensor_index,
-                    focalPixPermm,
-                    bUsePrincipalPoint,
-                    bUseRigidRig);
-
-                //export info
-                #pragma omp critical
-                {
-                    camAndIntrinsics.insert(std::make_pair(*iter_image, camInfo));
-                }
-
-            };
-
-            //update progress bar
-            #pragma omp critical
-            {
-                ++my_progress_bar_image;
-            }
-
-        } //endif format known
-
-    }; // looop on vector image
-
-    if( sTimestampLower.empty() )
-        sTimestampLower = minTimestamp;
-
-    if( sTimestampUpper.empty() )
-        sTimestampUpper = maxTimestamp;
-
-    // keep only most represented rig
-    std::set < std::string >  imageToRemove;
-    keepRepresentativeRigs( imageToRemove,
-                            mapSubcamPerTimestamp,
-                            camAndIntrinsics.size(),
-                            sTimestampLower,
-                            sTimestampUpper);
-
-    //load json file
-    SfM_Gps_Data  loaded_GPS_Data;
-    Load_gpsimu_cereal( loaded_GPS_Data, sGpsFile );
-
-    // create R/C map per timestamp
-    std::map < std::string, Mat3 >  map_rotationPerTimestamp;
-    std::map < std::string, Vec3 >  map_translationPerTimestamp;
-
-    create_gps_imu_map( loaded_GPS_Data,
-                        map_rotationPerTimestamp,
-                        map_translationPerTimestamp );
-
-    //now create openMVG camera views on remaing rigs
-    openMVG::sfm::SfM_Data   sfm_data;
-    sfm_data.s_root_path = sImageDir;
-    std::map < size_t, size_t > map_intrinsicIdPerCamId;
-    size_t     cpt=0;
-
-    // use only complete rigs
-    std::set<std::string>::iterator  it = imageToRemove.end();
-
-    for( std::set<imageNameAndIntrinsic>::const_iterator iter=camAndIntrinsics.begin();
-         iter != camAndIntrinsics.end(); ++iter)
-    {
-      // check if we have to keep this timestamp
-      it=imageToRemove.find(iter->first);
-      if ( it == imageToRemove.end() )
-      {
-          // extract camera information
-          camInformation    cam = iter->second;
-          std::string  img_name = iter->first;
-
-          // extract informations relative to image (timestamp, subcam rotation and optical center)
-          std::string  timestamp = cam.sRigName;
-          const size_t      camI = cam.subChan;
-          const Mat3 Rc(cam.R);
-          const Vec3 Cc(cam.C);
-
-          // update intrinsic ID map
-          const size_t  intrinsicID = map_intrinsicIdPerCamId.size();
-          if( map_intrinsicIdPerCamId.find(camI) == map_intrinsicIdPerCamId.end())
-          {
-              map_intrinsicIdPerCamId[camI] = intrinsicID;
-          }
-
-          //now extract rig pose
-          Mat3 Rr = Mat3::Identity();
-          Vec3 Cr = Vec3::Zero();
-
-          if( map_rotationPerTimestamp.find(timestamp) != map_rotationPerTimestamp.end() )
-          {
-              Rr = map_rotationPerTimestamp.at(timestamp);
-          }
-
-          if( map_translationPerTimestamp.find(timestamp) != map_translationPerTimestamp.end() )
-          {
-              Cr = map_translationPerTimestamp.at(timestamp);
-          }
-
-          // and finally compute camera pose
-          const Mat3  R = Rc.transpose() * Rr ;
-          const Vec3  C = Cr + Rr.transpose() * Cc ;
-
-          // update views / pose map
-          const size_t  focal_id = map_intrinsicIdPerCamId[camI];
-          sfm_data.views[cpt] = std::make_shared<openMVG::sfm::View>(img_name, cpt, focal_id, cpt, cam.width, cam.height);
-          sfm_data.intrinsics[focal_id] = std::make_shared<openMVG::cameras::Pinhole_Intrinsic> (cam.width, cam.height, cam.focal, cam.px0, cam.py0 );
-          sfm_data.poses[cpt] = openMVG::geometry::Pose3(R,C);
-
-          //update counter
-          ++cpt;
-      }
-
-    }
-
-    // Store SfM_Data views & intrinsic data
-    if (Save(
-          sfm_data,
-          stlplus::create_filespec( sOutputDir, "sfm_data.json" ).c_str(),
-          openMVG::sfm::ESfM_Data(openMVG::sfm::VIEWS|openMVG::sfm::INTRINSICS|openMVG::sfm::EXTRINSICS)) )
-    {
-        return true;
-    }
-    else
-        return false;
 
 }
