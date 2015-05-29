@@ -206,7 +206,7 @@ bool Load_gpsimu_cereal( SfM_Gps_Data & data,
   return true;
 };
 
-// create map timstamp -> rotation / gps informations
+// create map timestamp -> rotation / gps informations
 bool create_gps_imu_map( SfM_Gps_Data & data,
                          std::map < std::string, Mat3 > & map_rotationPerTimestamp,
                          std::map < std::string, Vec3 > & map_translationPerTimestamp )
@@ -215,8 +215,8 @@ bool create_gps_imu_map( SfM_Gps_Data & data,
   const  double a = 6378137.0;  // earth half big axes
   const  double e = 0.081819190842622; //  earth excentricity
 
-  Vec3  CI=Vec3::Zero();
-  Mat3  RI=Mat3::Zero();
+  Vec3  CI = Vec3::Zero();
+  Mat3  RI = Mat3::Zero();
 
   //parse gps data set
   for( size_t i = 0 ; i < data.gpsData.size() ; ++i )
