@@ -37,14 +37,14 @@
  #/
 
 
-cmake_minimum_required(VERSION 2.8 FATAL_ERROR)
+cmake_minimum_required(VERSION 2.6 FATAL_ERROR)
 
 project(openMVG_Rig C CXX)
 
 # ==============================================================================
 #  C / C++ flags
 # ==============================================================================
-set(CMAKE_CXX_COMPILER g++)
+set(CMAKE_CXX_COMPILER c++)
 set(CMAKE_BUILD_TYPE Debug)
 
 if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU" OR
@@ -82,41 +82,22 @@ endif (OPENMP_FOUND)
 # pkgconfig / opencv
 # ------------------------------------------------------------------------------
 find_package(PkgConfig)
-find_package(OpenCV REQUIRED)
+find_package(OpenMVG REQUIRED)
 
 # ------------------------------------------------------------------------------
 # libfastcal
 # ------------------------------------------------------------------------------
-add_custom_target(
-  fastcal
-  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/lib/libfastcal
-  COMMAND make
-)
-
-set(LIBFASTCAL_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/lib/libfastcal/src)
-set(LIBFASTCAL_LIBS ${CMAKE_CURRENT_SOURCE_DIR}/lib/libfastcal/bin/libfastcal.a)
-
-# ------------------------------------------------------------------------------
-# stlplus
-# ------------------------------------------------------------------------------
-add_custom_target(
-  stlplus
-  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/lib/stlplus3/
-  COMMAND cmake .
-  COMMAND make
-)
-
-set(LIBSTL_LIBS ${CMAKE_CURRENT_SOURCE_DIR}/lib/stlplus3/libstlplus.a)
+add_subdirectory(lib)
+set(LIBFASTCAL_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/lib/libfastcal/src/)
+set(LIBFASTCAL_LIBS ${CMAKE_CURRENT_BINARY_DIR}/lib/libfastcal/liblibfastcal.a)
 
 # ==============================================================================
 # Include directories
 # ==============================================================================
 include_directories(
   ${OPENMVG_RIG_SOURCE_DIR}/openMVGRig_create_list
+  ${OPENMVG_INCLUDE_DIRS}
   ${LIBFASTCAL_INCLUDE_DIR}
-  ${CMAKE_CURRENT_SOURCE_DIR}/lib/cmdLine
-  ${CMAKE_CURRENT_SOURCE_DIR}/lib/stlAddition
-  ${CMAKE_CURRENT_SOURCE_DIR}/lib/stlplus3/filesystemSimplified/
 )
 
 # ==============================================================================
@@ -124,9 +105,7 @@ include_directories(
 # ==============================================================================
 set(OPENMVG_RIG_LIBRARY_LIST
   ${LIBFASTCAL_LIBS}
-  ${OpenCV_LIBS}
-  ${LIBSTL_LIBS}
-  ${OPENMVG_RIG_LIBRARY_DEPENDENCIES}
+  ${OPENMVG_LIBRARIES}
 )
 
 # ==============================================================================

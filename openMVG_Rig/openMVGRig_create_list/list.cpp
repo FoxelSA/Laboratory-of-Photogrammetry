@@ -75,8 +75,8 @@
 #include <stdlib.h>
 #include <fstream>
 #include <cstring>
-#include "../lib/stlplus3/filesystemSimplified/file_system.hpp"
-#include "../lib/cmdLine/cmdLine.h"
+#include <stlplus3/filesystemSimplified/file_system.hpp>
+#include <cmdLine/cmdLine.h>
 
 using namespace std;
 

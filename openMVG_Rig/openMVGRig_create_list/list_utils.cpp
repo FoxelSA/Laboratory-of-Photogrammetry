@@ -50,7 +50,7 @@
 #include <ctype.h>
 #include <stdlib.h>
 #include "progress.hpp"
-#include "../lib/stlplus3/filesystemSimplified/file_system.hpp"
+#include <stlplus3/filesystemSimplified/file_system.hpp>
 
 using namespace std;
 
