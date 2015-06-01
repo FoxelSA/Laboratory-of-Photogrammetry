@@ -49,7 +49,7 @@ target_link_libraries(openMVGRig_create_list
   ${OPENMVG_RIG_LIBRARY_LIST}
 )
 
-add_dependencies(openMVGRig_create_list fastcal ${OPENMVG_LIBS} )
+add_dependencies(openMVGRig_create_list ${OPENMVG_RIG_LIBRARY_LIST} )
 set(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/software)
 
 install(TARGETS openMVGRig_create_list DESTINATION ${CMAKE_INSTALL_PREFIX}/bin)
