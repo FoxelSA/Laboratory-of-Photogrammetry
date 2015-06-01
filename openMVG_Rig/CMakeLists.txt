@@ -90,15 +90,14 @@ find_package(OpenMVG REQUIRED)
 # ------------------------------------------------------------------------------
 # libfastcal
 # ------------------------------------------------------------------------------
-add_subdirectory(lib)
-set(LIBFASTCAL_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/lib/libfastcal/src/)
-set(LIBFASTCAL_LIBS ${CMAKE_CURRENT_BINARY_DIR}/lib/libfastcal/liblibfastcal.a)
+set(LIBFASTCAL_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/lib/libfastcal/src/)
+set(LIBFASTCAL_LIBS ${CMAKE_CURRENT_BINARY_DIR}/src/lib/libfastcal/liblibfastcal.a)
 
 # ==============================================================================
 # Include directories
 # ==============================================================================
 include_directories(
-  ${OPENMVG_RIG_SOURCE_DIR}/openMVGRig_create_list
+  ${OPENMVG_RIG_SOURCE_DIR}/src/openMVGRig_create_list
   ${OPENMVG_INCLUDE_DIRS}
   ${LIBFASTCAL_INCLUDE_DIR}
 )
@@ -114,4 +113,4 @@ set(OPENMVG_RIG_LIBRARY_LIST
 # ==============================================================================
 # Go to subdirectory
 # ==============================================================================
-add_subdirectory(openMVGRig_create_list)
+add_subdirectory(src)
