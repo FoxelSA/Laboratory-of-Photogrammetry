@@ -97,7 +97,7 @@ set(LIBFASTCAL_LIBS ${CMAKE_CURRENT_BINARY_DIR}/src/lib/libfastcal/liblibfastcal
 # Include directories
 # ==============================================================================
 include_directories(
-  ${OPENMVG_RIG_SOURCE_DIR}/src/openMVGRig_create_list
+  ${OPENMVG_RIG_SOURCE_DIR}/src/SfMInit_ImageListing/
   ${OPENMVG_INCLUDE_DIRS}
   ${LIBFASTCAL_INCLUDE_DIR}
 )

@@ -89,14 +89,14 @@ using namespace std;
 * \param smacAddress    Mac address of the elphel camera that take the photo
 * \param sOutputDir     Path/directory where you want the file lists.txt lies
 * \param sMountPoint    mount point of the camera folder
-* \param sChannelFile   Optionnal Argument. Path/name of the channel file containing the subcamera you want to keep
+* \param sChannelFile   Optional Argument. Path/name of the channel file containing the subcamera you want to keep
 *                       By default we keep all subcameras.
-* \param bRigidRig      Optionnal Argument. if 0, do not use rigid rig structure, if 1
+* \param bRigidRig      Optional Argument. if 0, do not use rigid rig structure, if 1
 *                       use rigid rig structure. Default is 1.
-* \param focalPixPermm  Optionnal Argument. If passed to the programm, we will use the
+* \param focalPixPermm  Optional Argument. If passed to the programm, we will use the
 *                       focal given in input for all images. Warning, the focal should be in
 *                       pixels per mm.
-* \param bUseCalibPrincipalPoint Optionnal Argument. If 0, use the center of as principal point, if 1
+* \param bUseCalibPrincipalPoint Optional Argument. If 0, use the center of as principal point, if 1
 *                       use the principal point given by calibration process.
 *
 * \return 0 if all was well, 1 in other cases.
@@ -138,18 +138,18 @@ int main(int argc, char **argv)
   } catch(const std::string& s) {
       std::cerr << "Usage: " << argv[0] << '\n'
       << "[-i|--imageDirectory]\n"
-      << "[-m|--macAddress\n"
+      << "[-m|--macAddress]\n"
       << "[-o|--outputDirectory]\n"
       << "[-d|--mountPoint]\n"
       << "[-c|--channelFile]\n"
-      << "[-r|--rigidRig \n"
+      << "[-r|--rigidRig] \n"
       << "   -r 0 : no rigid rig \n"
       << "   -r 1 : with rigid rig structure (default)\n"
-      << "[-p|--useCalibPrincipalPoint\n"
+      << "[-p|--useCalibPrincipalPoint]\n"
       << "   -p 0 : do not use calibration principal point\n"
       << "   -p 1 : use calibration principal point (default) \n"
-      << "[-a|--lowerBound \n"
-      << "[-b|--upperBound \n"
+      << "[-a|--lowerBound] lower bound limit for timestamp\n"
+      << "[-b|--upperBound] upper bound limit for timestamp\n"
       << "[-f|--focal] (pixels)\n"
       << "[-g|--gps] GPU/IMU json file\n"
       << std::endl;

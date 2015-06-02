@@ -39,17 +39,15 @@
 # ==============================================================================
 # Build Executable
 # ==============================================================================
-add_executable(openMVGRig_create_list
-                    tools.cpp
-                    types.cpp
-                    list_utils.cpp
-                    list.cpp
-                    )
-target_link_libraries(openMVGRig_create_list
-  ${OPENMVG_RIG_LIBRARY_LIST}
-)
+add_executable(openMVGRig_SfMInit_ImageListing
+  tools.cpp
+  types.cpp
+  list_utils.cpp
+  main.cpp)
 
-add_dependencies(openMVGRig_create_list ${OPENMVG_RIG_LIBRARY_LIST} )
+target_link_libraries(openMVGRig_SfMInit_ImageListing ${OPENMVG_RIG_LIBRARY_LIST})
+
+add_dependencies(openMVGRig_SfMInit_ImageListing ${OPENMVG_RIG_LIBRARY_LIST} )
 set(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/software)
 
-install(TARGETS openMVGRig_create_list DESTINATION ${CMAKE_INSTALL_PREFIX}/bin)
+install(TARGETS openMVGRig_SfMInit_ImageListing DESTINATION ${CMAKE_INSTALL_PREFIX}/bin)

@@ -8,6 +8,7 @@
 # Author(s):
 #
 #      Stéphane Flotron <s.flotron@foxel.ch>
+#      Pierre   Moulon  <p.moulon@foxel.ch>
 #
 #
 # This file is part of the FOXEL project <http://foxel.ch>.
@@ -40,4 +41,4 @@
 # Go to subdirectory
 # ==============================================================================
 add_subdirectory(lib)
-add_subdirectory(openMVGRig_create_list)
+add_subdirectory(SfMInit_ImageListing)

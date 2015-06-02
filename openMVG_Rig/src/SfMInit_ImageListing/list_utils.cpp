@@ -208,11 +208,8 @@ bool isInputValid( const char*  softName,
                     else
                       return true;
                 }
-
             }
-
         }
-
     }
 }
 
@@ -289,7 +286,8 @@ bool  loadCalibrationData(  std::vector< sensorData >  & vec_sensorData,
           std::cerr << " Could not read calibration data. Exit" << std::endl;
           return false;
       }
-
+      delete [] c_data;
+      delete [] c_mac;
 }
 
 /*********************************************************************
@@ -492,7 +490,7 @@ bool computeInstrinsicPerImages(
   std::set<imageNameAndIntrinsic> camAndIntrinsics;
 
   C_Progress_display my_progress_bar_image( vec_image.size(),
-  std::cout, "\n List computation progession:\n");
+  std::cout, "\n List computation progression:\n");
 
   // declare variable before loop
   std::vector<std::string>::const_iterator iter_image = vec_image.begin();
@@ -532,10 +530,10 @@ bool computeInstrinsicPerImages(
           splitted_name.clear();
 
           stl::split( *iter_image, "-", splitted_name );
-          sensor_index=atoi(splitted_name[1].c_str());
+          sensor_index = atoi(splitted_name[1].c_str());
 
           // now load image information and keep channel index and timestamp
-          timestamp=splitted_name[0];
+          timestamp = splitted_name[0];
 
           #pragma omp critical
           {
@@ -654,7 +652,7 @@ bool computeInstrinsicPerImages(
   }
 
   //now create openMVG camera views on remaing rigs
-  openMVG::sfm::SfM_Data   sfm_data;
+  openMVG::sfm::SfM_Data sfm_data;
   sfm_data.s_root_path = sImageDir;
   std::map < size_t, size_t > map_intrinsicIdPerCamId;
   size_t cpt = 0;
@@ -666,7 +664,7 @@ bool computeInstrinsicPerImages(
        iter != camAndIntrinsics.end(); ++iter)
   {
     // check if we have to keep this timestamp
-    it=imageToRemove.find(iter->first);
+    it = imageToRemove.find(iter->first);
     if ( it == imageToRemove.end() )
     {
         // extract camera information
@@ -706,21 +704,18 @@ bool computeInstrinsicPerImages(
             if ( bUseGPS )
             {
                 // extract informations relative to image (timestamp, subcam rotation and optical center)
-                std::string  timestamp = cam.sRigName;
+                const std::string  timestamp = cam.sRigName;
 
                 //now extract rig pose
-                Mat3 Rr = Mat3::Identity();
-                Vec3 Cr = Vec3::Zero();
+                const Mat3 Rr =
+                  (map_rotationPerTimestamp.find(timestamp) == map_rotationPerTimestamp.end()) ?
+                    Mat3::Identity():
+                    map_rotationPerTimestamp.at(timestamp);
 
-                if( map_rotationPerTimestamp.find(timestamp) != map_rotationPerTimestamp.end() )
-                {
-                    Rr = map_rotationPerTimestamp.at(timestamp);
-                }
-
-                if( map_translationPerTimestamp.find(timestamp) != map_translationPerTimestamp.end() )
-                {
-                    Cr = map_translationPerTimestamp.at(timestamp);
-                }
+                const Vec3 Cr =
+                  (map_translationPerTimestamp.find(timestamp) == map_translationPerTimestamp.end())?
+                    Vec3::Zero():
+                    map_translationPerTimestamp.at(timestamp);
 
                 sfm_data.poses[cpt] = openMVG::geometry::Pose3(Rr,Cr);
             }
