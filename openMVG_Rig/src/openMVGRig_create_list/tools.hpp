@@ -80,27 +80,6 @@
 using namespace std;
 
 /*******************************************************************************
-* Split an input string with a delimiter and fill a string vector
-*
-********************************************************************************
-*/
-
-/*! \brief Split a string using a delimiter
-*
-* This function split a string into substring using a delimiter and fill a string
-* vector
-*
-* \param src         Input string
-* \param delim       Delimiter
-* \param vec_value   vector containing the sub string
-*
-* \return bool value that says if the splitting was sucessfull or not
-*/
-
-bool split ( const std::string src, const std::string& delim, std::vector<std::string>& vec_value );
-
-
-/*******************************************************************************
 *  Given 4 angles, compute Elphel rotation
 *
 ********************************************************************************

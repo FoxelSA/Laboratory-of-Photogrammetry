@@ -48,9 +48,10 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include <stdlib.h>
-#include "progress.hpp"
 #include "json.hpp"
 #include <openMVG/sfm/sfm.hpp>
+#include <openMVG/stl/split.hpp>
+#include <progress/progress.hpp>
 #include <stlplus3/filesystemSimplified/file_system.hpp>
 
 using namespace std;
@@ -79,8 +80,8 @@ bool isRangeValid(  const std::string& sTimestampLow,
   std::vector <std::string>  splitLow;
   std::vector <std::string>  splitUp;
 
-  split( sTimestampLow, "_", splitLow );
-  split( sTimestampUp, "_", splitUp );
+  stl::split( sTimestampLow, "_", splitLow );
+  stl::split( sTimestampUp, "_", splitUp );
 
   // check that the two timestamps are in the format 0123456789_012345
   if(  splitLow.size() == 2
@@ -521,7 +522,7 @@ bool computeInstrinsicPerImages(
           // extract channel information from image name
           splitted_name.clear();
 
-          split( *iter_image, "-", splitted_name );
+          stl::split( *iter_image, "-", splitted_name );
           sensor_index=atoi(splitted_name[1].c_str());
 
           // now load image information and keep channel index and timestamp
@@ -643,11 +644,11 @@ bool computeInstrinsicPerImages(
                         map_translationPerTimestamp );
   }
 
-    //now create openMVG camera views on remaing rigs
-    openMVG::sfm::SfM_Data   sfm_data;
-    sfm_data.s_root_path = sImageDir;
-    std::map < size_t, size_t > map_intrinsicIdPerCamId;
-    size_t cpt = 0;
+  //now create openMVG camera views on remaing rigs
+  openMVG::sfm::SfM_Data   sfm_data;
+  sfm_data.s_root_path = sImageDir;
+  std::map < size_t, size_t > map_intrinsicIdPerCamId;
+  size_t cpt = 0;
 
   // use only complete rigs
   std::set<std::string>::iterator  it = imageToRemove.end();

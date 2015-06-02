@@ -144,9 +144,9 @@ int main(int argc, char **argv)
       << "[-c|--channelFile]\n"
       << "[-r|--rigidRig \n"
       << "   -r 0 : no rigid rig \n"
-      << "   -r 1 : with rigid rig structure\n"
+      << "   -r 1 : with rigid rig structure (default)\n"
       << "[-p|--useCalibPrincipalPoint\n"
-      << "   -p 0 : do not use calibration principal point \n"
+      << "   -p 0 : do not use calibration principal point (default)\n"
       << "   -p 1 : use calibration principal point \n"
       << "[-a|--lowerBound \n"
       << "[-b|--upperBound \n"
@@ -180,7 +180,6 @@ int main(int argc, char **argv)
    }
    else  // if input data is valid, go ahead
    {
-
        // now extract calibration information related to each module
        std::vector < sensorData > vec_sensorData;
        const bool bLoadCalibration = loadCalibrationData( vec_sensorData, sMountPoint, smacAddress);
@@ -191,7 +190,6 @@ int main(int argc, char **argv)
        }
        else  // if calibration information are loaded, go ahead
        {
-
            // load image filename
            std::vector<std::string> vec_image = stlplus::folder_files( sImageDir );
 
@@ -227,9 +225,7 @@ int main(int argc, char **argv)
                 std::cerr << "Could not export list to folder. Exit " << std::endl;
                 return EXIT_FAILURE;
             }
-
         }
-
     }
 
 }
