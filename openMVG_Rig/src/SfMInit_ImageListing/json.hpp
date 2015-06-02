@@ -189,20 +189,6 @@ bool Load_gpsimu_cereal( SfM_Gps_Data & data,
     return false;
   }
 
-#if 0
-  // export data for debug
-  std::string  outfile = "./export.json";
-
-  //Create the stream and check it is ok
-  std::ofstream ostream(outfile.c_str());
-  if (!ostream.is_open())
-    return false;
-
-  cereal::JSONOutputArchive oarchive(ostream);
-
-  oarchive(cereal::make_nvp("pose", data.gpsData) );
-#endif
-
   return true;
 }
 
@@ -234,11 +220,6 @@ bool create_gps_imu_map( SfM_Gps_Data & data,
       Mat3  Rx;
       Rx = Eigen::AngleAxisd( M_PI / 2.0, Vec3::UnitX());
 
-      // undo rotation made by the holder of the camera
-      Mat3  R_corr;
-      R_corr = Eigen::AngleAxisd( -30.0 * M_PI / 180.0, Vec3::UnitZ())
-             * Eigen::AngleAxisd( -10.0 * M_PI / 180.0, Vec3::UnitX());
-
       //extract rotation information
       std::vector <double>  rigR = rigI.orientation;
       if( rigR.size() == 10) // if we have imu informations
@@ -255,7 +236,7 @@ bool create_gps_imu_map( SfM_Gps_Data & data,
           if( map_rotationPerTimestamp.size() == 0 )
               RI = R;
 
-          const Mat3 Rf = R_corr * Rx * ( RI.transpose() * R );
+          const Mat3 Rf = Rx * ( RI.transpose() * R );
 
           //update map
           map_rotationPerTimestamp[timestamp] = Rf;
@@ -286,7 +267,7 @@ bool create_gps_imu_map( SfM_Gps_Data & data,
               CI = C;
 
           //update map
-          map_translationPerTimestamp[timestamp] =  R_corr * (C-CI);
+          map_translationPerTimestamp[timestamp] =  (C-CI);
       }
   }
 
