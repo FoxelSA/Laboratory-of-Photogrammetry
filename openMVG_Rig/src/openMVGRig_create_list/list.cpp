@@ -118,7 +118,7 @@ int main(int argc, char **argv)
 
   li_Real_t     focalPixPermm = -1.0;
   bool          bRigidRig     = true;
-  bool          bUseCalibPrincipalPoint = false;
+  bool          bUseCalibPrincipalPoint = true;
 
   cmd.add( make_option('i', sImageDir, "imageDirectory") );
   cmd.add( make_option('m', smacAddress, "macAddress") );
@@ -146,8 +146,8 @@ int main(int argc, char **argv)
       << "   -r 0 : no rigid rig \n"
       << "   -r 1 : with rigid rig structure (default)\n"
       << "[-p|--useCalibPrincipalPoint\n"
-      << "   -p 0 : do not use calibration principal point (default)\n"
-      << "   -p 1 : use calibration principal point \n"
+      << "   -p 0 : do not use calibration principal point\n"
+      << "   -p 1 : use calibration principal point (default) \n"
       << "[-a|--lowerBound \n"
       << "[-b|--upperBound \n"
       << "[-f|--focal] (pixels)\n"

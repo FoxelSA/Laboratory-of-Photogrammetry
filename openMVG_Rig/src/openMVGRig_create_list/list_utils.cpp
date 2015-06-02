@@ -374,8 +374,17 @@ void computeImageIntrinsic(
         li_Real_t focalPix = vec_sensorData[sensor_index].lfFocalLength / vec_sensorData[sensor_index].lfPixelSize ;
 
         camInfo.focal = focalPix;
-        camInfo.px0   = vec_sensorData[sensor_index].lfpx0;
-        camInfo.py0   = vec_sensorData[sensor_index].lfpy0;
+
+        if(!bUseCalibPrincipalPoint)
+        {
+            camInfo.px0   = camInfo.width  / 2.0 ;
+            camInfo.py0   = camInfo.height / 2.0 ;
+        }
+        else
+        {
+            camInfo.px0   = vec_sensorData[sensor_index].lfpx0;
+            camInfo.py0   = vec_sensorData[sensor_index].lfpy0;
+        }
     }
 
     // export channel
