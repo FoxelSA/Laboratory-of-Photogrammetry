@@ -42,3 +42,4 @@
 # ==============================================================================
 add_subdirectory(lib)
 add_subdirectory(SfMInit_ImageListing)
+add_subdirectory(ComputeMatches)
