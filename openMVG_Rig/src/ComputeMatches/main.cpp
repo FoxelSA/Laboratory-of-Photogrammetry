@@ -130,7 +130,7 @@ int main(int argc, char **argv)
   << argv[0] << std::endl
   << "--input_file "      << sSfM_Data_Filename << std::endl
   << "--outdir "          << sMatchesDirectory << std::endl
-  << "(options)"
+  << "(options)\n"
   << "--force "           << bForce << std::endl
   << "--ratio "           << fDistRatio << std::endl
   << "--geometricModel "  << sGeometricModel << std::endl
