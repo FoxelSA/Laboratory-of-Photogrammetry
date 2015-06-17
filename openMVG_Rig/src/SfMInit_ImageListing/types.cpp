@@ -69,13 +69,25 @@ using namespace std;
       }
       else
       {
-          if( (c1.px0 < c2.px0) )
+          if( (c1.focal==c2.focal) && (c1.px0 < c2.px0) )
           {
               return (c1.px0 < c2.px0 );
           }
           else
           {
-              return ( c1.C[0] < c2.C[0] );
+             if( (c1.focal==c2.focal) && (c1.px0 == c2.px0) && c1.py0 < c2.py0 )
+             {
+                  return ( c1.py0 < c2.py0 );
+             }
+             else
+             {
+                if( (c1.focal==c2.focal) && (c1.px0 == c2.px0) && (c1.py0 == c2.py0) && c1.C[0] < c2.C[0] )
+                {
+                    return  (c1.C[0]  < c2.C[0] );
+                }
+                else
+                  return ( (c1.C[1] < c2.C[1] ) && (c1.C[0] == c2.C[0]) ); 
+             }
           }
       }
   }
