@@ -668,8 +668,8 @@ bool computeInstrinsicPerImages(
     if ( it == imageToRemove.end() )
     {
         // extract camera information
-        camInformation    cam = iter->second;
-        std::string  img_name = iter->first;
+        const camInformation    cam = iter->second;
+        const std::string  img_name = iter->first;
 
         // extract informations relative to image (timestamp, subcam rotation and optical center)
         std::string  timestamp = cam.sRigName;
@@ -684,49 +684,52 @@ bool computeInstrinsicPerImages(
         // update views / pose map
         const size_t  focal_id = map_intrinsicIdPerCamId[cam];
         if( bUseRigidRig )
-            sfm_data.views[cpt] = std::make_shared<openMVG::sfm::Rig_View>(img_name, cpt, focal_id, mapRigPerImage[cam.sRigName], cam.width, cam.height, mapRigPerImage[cam.sRigName], cam.subChan);
-        else
-            sfm_data.views[cpt] = std::make_shared<openMVG::sfm::View>(img_name, cpt, focal_id, cpt, cam.width, cam.height);
-
-        // add camera subpose in case of rigid rig
-        if( bUseRigidRig )
         {
-            // extract camera pose
-            const Mat3 Rc(cam.R);
-            const Vec3 Cc(cam.C);
-
-            // update json data base
-            const openMVG::geometry::Pose3  pose(Rc.transpose(), Cc);
-            sfm_data.intrinsics[focal_id] = std::make_shared<openMVG::cameras::Rig_Pinhole_Intrinsic> (cam.width, cam.height, cam.focal, cam.px0, cam.py0, pose);
-
-            // if we have GPS / Informations
-            if ( bUseGPS )
-            {
-                // extract informations relative to image (timestamp, subcam rotation and optical center)
-                const std::string  timestamp = cam.sRigName;
-
-                //now extract rig pose
-                const Mat3 Rr =
-                  (map_rotationPerTimestamp.find(timestamp) == map_rotationPerTimestamp.end()) ?
-                    Mat3::Identity():
-                    map_rotationPerTimestamp.at(timestamp);
-
-                const Vec3 Cr =
-                  (map_translationPerTimestamp.find(timestamp) == map_translationPerTimestamp.end())?
-                    Vec3::Zero():
-                    map_translationPerTimestamp.at(timestamp);
-
-                sfm_data.poses[cpt] = openMVG::geometry::Pose3(Rr,Cr);
-            }
+            sfm_data.views[cpt] = std::make_shared<openMVG::sfm::Rig_View>(img_name, cpt, focal_id, mapRigPerImage[cam.sRigName], cam.width, cam.height, mapRigPerImage[cam.sRigName], cam.subChan);
         }
         else
         {
-            // if no rig needed subpose is (I_3, 0)
-            sfm_data.intrinsics[focal_id] = std::make_shared<openMVG::cameras::Pinhole_Intrinsic> (cam.width, cam.height, cam.focal, cam.px0, cam.py0);
+            sfm_data.views[cpt] = std::make_shared<openMVG::sfm::View>(img_name, cpt, focal_id, cpt, cam.width, cam.height);
+        }
+
+        // update intrinsics map (if not already set)
+        if ( sfm_data.intrinsics.count(focal_id) == 0 )
+        {
+            if ( bUseRigidRig )
+            {
+                // update intrinsic data base with a subpose field
+                const openMVG::geometry::Pose3 pose(Mat3(cam.R).transpose(), Vec3(cam.C));
+                sfm_data.intrinsics[focal_id] = std::make_shared<openMVG::cameras::Rig_Pinhole_Intrinsic> (cam.width, cam.height, cam.focal, cam.px0, cam.py0, pose);
+            }
+            else
+            {
+                // No subpose to configure
+                sfm_data.intrinsics[focal_id] = std::make_shared<openMVG::cameras::Pinhole_Intrinsic> (cam.width, cam.height, cam.focal, cam.px0, cam.py0);
+            }
+        }
+
+        // Update pose prior if we have GPS informations
+        // - usable only in rig case, since it will combined with the subpose on the fly
+        if ( bUseRigidRig && bUseGPS && sfm_data.poses.count(mapRigPerImage[cam.sRigName]) == 0 )
+        {
+            // extract informations relative to image (timestamp, subcam rotation and optical center)
+            const std::string timestamp = cam.sRigName;
+
+            // now extract rig pose
+            const Mat3 Rr =
+              (map_rotationPerTimestamp.find(timestamp) == map_rotationPerTimestamp.end()) ?
+                Mat3::Identity():
+                map_rotationPerTimestamp.at(timestamp);
+
+            const Vec3 Cr =
+              (map_translationPerTimestamp.find(timestamp) == map_translationPerTimestamp.end())?
+                Vec3::Zero():
+                map_translationPerTimestamp.at(timestamp);
+
+            sfm_data.poses[ mapRigPerImage[cam.sRigName] ] = openMVG::geometry::Pose3(Rr,Cr);
         }
         ++cpt;
     }
-
   }
 
   // Store SfM_Data views & intrinsic data
