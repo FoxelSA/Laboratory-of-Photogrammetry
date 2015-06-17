@@ -590,7 +590,7 @@ bool computeInstrinsicPerImages(
                   mapSubcamPerTimestamp[timestamp].push_back( *iter_image );
               }
 
-              // export camera infor
+              // export camera information
               camInformation   camInfo;
 
               computeImageIntrinsic(
@@ -685,7 +685,7 @@ bool computeInstrinsicPerImages(
         // update views / pose map
         const size_t  focal_id = map_intrinsicIdPerCamId[camI];
         if( bUseRigidRig )
-            sfm_data.views[cpt] = std::make_shared<openMVG::sfm::Rig_View>(img_name, cpt, focal_id, cpt, cam.width, cam.height, mapRigPerImage[cam.sRigName], cam.subChan);
+            sfm_data.views[cpt] = std::make_shared<openMVG::sfm::Rig_View>(img_name, cpt, focal_id, mapRigPerImage[cam.sRigName], cam.width, cam.height, mapRigPerImage[cam.sRigName], cam.subChan);
         else
             sfm_data.views[cpt] = std::make_shared<openMVG::sfm::View>(img_name, cpt, focal_id, cpt, cam.width, cam.height);
 
