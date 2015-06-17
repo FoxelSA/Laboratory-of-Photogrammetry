@@ -41,6 +41,45 @@
 
 using namespace std;
 
+// test equality between intrinsic parameters
+  bool operator==(const camInformation& c1, const camInformation& c2)
+  {
+
+    bool bSameRot(true), bSameC(true);
+
+    for( size_t i = 0; i < 9 ; ++i )
+       bSameRot = ( bSameRot && (c1.R[i] == c2.R[i]) );
+
+    for( size_t j=0 ; j < 3; ++j )
+       bSameC = ( bSameC && (c1.C[j] == c2.C[j]) );
+
+    return ( (c1.width == c2.width) && (c1.height == c2.height) && (c1.focal == c2.focal) && (c1.px0 == c2.px0) && (c1.py0 == c2.py0 ) && bSameRot && bSameC );
+  }
+
+  bool operator!=(const camInformation& c1, const camInformation& c2)
+  {
+      return !( c1 == c2);
+  }
+
+  bool operator<(const camInformation& c1, const camInformation& c2)
+  {
+      if( c1.focal < c2.focal )
+      {
+          return ( c1.focal < c2.focal );
+      }
+      else
+      {
+          if( (c1.px0 < c2.px0) )
+          {
+              return (c1.px0 < c2.px0 );
+          }
+          else
+          {
+              return ( c1.C[0] < c2.C[0] );
+          }
+      }
+  }
+
   bool operator==(const imageNameAndIntrinsic& i1, const imageNameAndIntrinsic& i2) {
       return (i1.first == i2.first);
     }

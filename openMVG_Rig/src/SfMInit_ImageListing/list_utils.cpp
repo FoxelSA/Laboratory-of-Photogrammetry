@@ -654,7 +654,7 @@ bool computeInstrinsicPerImages(
   //now create openMVG camera views on remaing rigs
   openMVG::sfm::SfM_Data sfm_data;
   sfm_data.s_root_path = sImageDir;
-  std::map < size_t, size_t > map_intrinsicIdPerCamId;
+  std::map < camInformation, size_t > map_intrinsicIdPerCamId;
   size_t cpt = 0;
 
   // use only complete rigs
@@ -673,17 +673,16 @@ bool computeInstrinsicPerImages(
 
         // extract informations relative to image (timestamp, subcam rotation and optical center)
         std::string  timestamp = cam.sRigName;
-        const size_t      camI = cam.subChan;
 
         // update intrinsic ID map
         const size_t  intrinsicID = map_intrinsicIdPerCamId.size();
-        if( map_intrinsicIdPerCamId.find(camI) == map_intrinsicIdPerCamId.end())
+        if( map_intrinsicIdPerCamId.find(cam) == map_intrinsicIdPerCamId.end())
         {
-            map_intrinsicIdPerCamId[camI] = intrinsicID;
+            map_intrinsicIdPerCamId[cam] = intrinsicID;
         }
 
         // update views / pose map
-        const size_t  focal_id = map_intrinsicIdPerCamId[camI];
+        const size_t  focal_id = map_intrinsicIdPerCamId[cam];
         if( bUseRigidRig )
             sfm_data.views[cpt] = std::make_shared<openMVG::sfm::Rig_View>(img_name, cpt, focal_id, mapRigPerImage[cam.sRigName], cam.width, cam.height, mapRigPerImage[cam.sRigName], cam.subChan);
         else
