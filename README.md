@@ -6,7 +6,7 @@ Description ...
 </p>
 
 <p align="justify">
-The <a href="https://github.com/FOXEL-Labs-Photogrammetry">laboratory organisationt</a>
+The <a href="https://github.com/FOXEL-Labs-Photogrammetry">laboratory organisation</a>
 gives access to the laboratory research codes and files structured in repositories.
 The <a href="https://github.com/FOXEL-Labs/Laboratory-of-Photogrammetry/wiki">wiki</a>
 gives access to the laboratory presentation and publications.
