@@ -9,7 +9,7 @@ Description ...
 The <a href="https://github.com/FOXEL-Labs-Photogrammetry">laboratory organisationt</a>
 gives access to the laboratory research codes and files structured in repositories.
 The <a href="https://github.com/FOXEL-Labs/Laboratory-of-Photogrammetry/wiki">wiki</a>
-gives access to laboratory presentation and publications
+gives access to the laboratory presentation and publications.
 </p>
 
 ### Copyright
