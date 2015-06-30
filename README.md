@@ -1,7 +1,13 @@
 
-## Laboratory of Photogrammetry <br /> Research in photogrammetry solutions
+## Laboratory of Photogrammetry <br /> Research and development in photogrammetry
 
 <p align="justify">
+Description ...
+</p>
+
+<p align="justify">
+The [laboratory organisation](https://github.com/FOXEL-Labs-Photogrammetry) gives access
+to the laboratory research codes and files structured in repositories.
 </p>
 
 ### Copyright
