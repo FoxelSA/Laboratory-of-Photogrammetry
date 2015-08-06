@@ -41,7 +41,6 @@
 # ==============================================================================
 add_executable(openMVGRig_SfMInit_ImageListing
   tools.cpp
-  types.cpp
   list_utils.cpp
   main.cpp)
 

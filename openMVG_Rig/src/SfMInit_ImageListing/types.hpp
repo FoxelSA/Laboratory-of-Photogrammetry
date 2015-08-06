@@ -200,21 +200,4 @@ struct sensorData
   li_Real_t C[3] = {0,0,0};
 };
 
-// test equality between intrinsic parameters
-bool operator==(const camInformation& c1, const camInformation& c2);
-
-bool operator!=(const camInformation& c1, const camInformation& c2);
-
-bool operator<(const camInformation& c1, const camInformation& c2);
-
-/// The structure used to store intrinsic per image
-typedef std::pair<std::string, camInformation > imageNameAndIntrinsic;
-
- bool operator==(const imageNameAndIntrinsic& i1, const imageNameAndIntrinsic& i2);
-
- bool operator!=(const imageNameAndIntrinsic& i1, const imageNameAndIntrinsic& i2);
-
- // Lexicographical ordering of matches. Used to remove duplicates.
- bool operator<(const imageNameAndIntrinsic& i1, const imageNameAndIntrinsic& i2);
-
  #endif /* TYPES_HPP_ */

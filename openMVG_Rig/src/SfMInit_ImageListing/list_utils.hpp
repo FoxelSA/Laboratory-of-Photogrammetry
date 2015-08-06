@@ -121,7 +121,7 @@ bool isRangeValid(  const std::string& sTimestampLow,
 * \param sChannelFile   The file containing the channel you want to use
 * \param bRigidRig      Bool value indicating if we use rig structure or not
 * \param bUseCalibPrincipalPoint   Bool value indicating if we use (or not) the principal point of calibration
-* \param focalPixPermm  the focal length in pixel per mm (optionnal argument)
+* \param focalPix       the focal length in pixels (optional argument)
 * \param sTimestampLow  Lower bound for timestamp value
 * \param sTimestampUp   Upper bound for timestampe value
 *
@@ -136,7 +136,7 @@ bool isInputValid(  const char* softName,
                     const std::string& sChannelFile,
                     const bool & bRigidRig,
                     const bool & bUseCalibPrincipalPoint,
-                    const double & focalPixPermm,
+                    const double & focalPix,
                     const std::string& sTimestampLow,
                     const std::string& sTimestampUp);
 
@@ -195,7 +195,7 @@ void loadChannelFile( std::vector< li_Size_t >  & keptChan,
 * \param keptChan            List of kept channel
 * \param sImageDir           Directory containing the images
 * \param sOutputDir          Directory containing the lists.txt file
-* \param focalPixPermm       Focal length in pixel per mm
+* \param focalPix            Focal length in pixels
 * \param bUsePrincipalPoint  bool value indicating if we use (or not) principal point from calibration
 * \param bUSeRigidRig        bool value indicating if we use rig structure or not
 * \param bUSeRigidRig        bool value indicating if we use  GPS / IMU information or not
@@ -212,7 +212,7 @@ bool computeInstrinsicPerImages(
                       const std::string & sImageDir,
                       const std::string & sOutputDir,
                       const std::string & sGpsFile,
-                      const double & focalPixPermm,
+                      const double & focalPix,
                       const bool & bUsePrincipalPoint,
                       const bool & bUseRigidRig,
                       const bool & bUseGPS,
@@ -233,7 +233,7 @@ bool computeInstrinsicPerImages(
  * \param vec_sensorData      Calibration data list
  * \param timestamp           Rig timestamp associated to image
  * \param sensor_index        Subchannel number
- * \param focalPixPermm       Focal length in pixel per mm
+ * \param focalPix            Focal length in pixels
  * \param bUsePrincipalPoint  bool value indicating if we use (or not) principal point from calibration
  * \param bUSeRigidRig        bool value indicating if we use rig structure or not
  *
@@ -245,7 +245,7 @@ void computeImageIntrinsic(
                      const std::vector < sensorData > & vec_sensorData,
                      const std::string & timestamp,
                      const size_t   & sensor_index,
-                     const double   & focalPixPermm,
+                     const double   & focalPix,
                      const bool     & bUseCalibPrincipalPoint,
                      const bool     & bRigidRig
 );

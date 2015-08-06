@@ -217,15 +217,14 @@ int main(int argc, char **argv)
             // do final check to ensure all went well
             if( isExported )
             {
-                std::cout << "Sucessfully exported list to folder. Quit" << std::endl;
+                std::cout << "Sucessfully exported the sfm_data file." << std::endl;
                 return EXIT_SUCCESS;
             }
             else
             {
-                std::cerr << "Could not export list to folder. Exit " << std::endl;
+                std::cerr << "Could not export list to folder." << std::endl;
                 return EXIT_FAILURE;
             }
         }
     }
-
 }

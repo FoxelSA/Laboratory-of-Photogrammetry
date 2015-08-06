@@ -126,7 +126,7 @@ bool isInputValid( const char*  softName,
                    const std::string& sChannelFile,
                    const bool & bRigidRig,
                    const bool & bUseCalibPrincipalPoint,
-                   const double & focalPixPermm,
+                   const double & focalPix,
                    const std::string& sTimestampLow,
                    const std::string& sTimestampUp)
 {
@@ -140,7 +140,7 @@ bool isInputValid( const char*  softName,
               << "--channelFile " << sChannelFile << std::endl
               << "--rigidRig " << bRigidRig << std::endl
               << "--useCalibPrincipalPoint " << bUseCalibPrincipalPoint << std::endl
-              << "--focal " << focalPixPermm << std::endl
+              << "--focal " << focalPix << std::endl
               << "--lowerBound " << sTimestampLow << std::endl
               << "--upperBound " << sTimestampUp << std::endl;
 
@@ -340,7 +340,7 @@ void computeImageIntrinsic(
                 const std::vector < sensorData > & vec_sensorData,
                 const std::string & timestamp,
                 const size_t   & sensor_index,
-                const double   & focalPixPermm,
+                const double   & focalPix,
                 const bool     & bUseCalibPrincipalPoint,
                 const bool     & bRigidRig )
 {
@@ -349,40 +349,26 @@ void computeImageIntrinsic(
     camInfo.height = vec_sensorData[sensor_index].lfHeight;
 
     // Create list if focal is given
-    if( focalPixPermm > 0.0 )
+    if( focalPix > 0.0 )
     {
-
-        camInfo.focal = focalPixPermm ;
-
-        if(!bUseCalibPrincipalPoint)
-        {
-            camInfo.px0   = camInfo.width  / 2.0 ;
-            camInfo.py0   = camInfo.height / 2.0 ;
-        }
-        else
-        {
-            camInfo.px0   = vec_sensorData[sensor_index].lfpx0;
-            camInfo.py0   = vec_sensorData[sensor_index].lfpy0;
-        }
-
+       camInfo.focal = focalPix;
     }
     // Create list if full calibration data are used
     else
     {
-        li_Real_t focalPix = vec_sensorData[sensor_index].lfFocalLength / vec_sensorData[sensor_index].lfPixelSize ;
-
+        li_Real_t focalPix = vec_sensorData[sensor_index].lfFocalLength / vec_sensorData[sensor_index].lfPixelSize;
         camInfo.focal = focalPix;
+     }
 
-        if(!bUseCalibPrincipalPoint)
-        {
-            camInfo.px0   = camInfo.width  / 2.0 ;
-            camInfo.py0   = camInfo.height / 2.0 ;
-        }
-        else
-        {
-            camInfo.px0   = vec_sensorData[sensor_index].lfpx0;
-            camInfo.py0   = vec_sensorData[sensor_index].lfpy0;
-        }
+    if(!bUseCalibPrincipalPoint)
+    {
+        camInfo.px0   = camInfo.width  / 2.0;
+        camInfo.py0   = camInfo.height / 2.0;
+    }
+    else
+    {
+        camInfo.px0   = vec_sensorData[sensor_index].lfpx0;
+        camInfo.py0   = vec_sensorData[sensor_index].lfpy0;
     }
 
     // export channel
@@ -395,23 +381,21 @@ void computeImageIntrinsic(
         camInfo.sRigName = timestamp;
 
         // export rotation
-        camInfo.R[0] = vec_sensorData[sensor_index].R[0] ;
-        camInfo.R[1] = vec_sensorData[sensor_index].R[1] ;
-        camInfo.R[2] = vec_sensorData[sensor_index].R[2] ;
-        camInfo.R[3] = vec_sensorData[sensor_index].R[3] ;
-        camInfo.R[4] = vec_sensorData[sensor_index].R[4] ;
-        camInfo.R[5] = vec_sensorData[sensor_index].R[5] ;
-        camInfo.R[6] = vec_sensorData[sensor_index].R[6] ;
-        camInfo.R[7] = vec_sensorData[sensor_index].R[7] ;
-        camInfo.R[8] = vec_sensorData[sensor_index].R[8] ;
+        camInfo.R[0] = vec_sensorData[sensor_index].R[0];
+        camInfo.R[1] = vec_sensorData[sensor_index].R[1];
+        camInfo.R[2] = vec_sensorData[sensor_index].R[2];
+        camInfo.R[3] = vec_sensorData[sensor_index].R[3];
+        camInfo.R[4] = vec_sensorData[sensor_index].R[4];
+        camInfo.R[5] = vec_sensorData[sensor_index].R[5];
+        camInfo.R[6] = vec_sensorData[sensor_index].R[6];
+        camInfo.R[7] = vec_sensorData[sensor_index].R[7];
+        camInfo.R[8] = vec_sensorData[sensor_index].R[8];
 
         // export translation
-        camInfo.C[0] = vec_sensorData[sensor_index].C[0] ;
-        camInfo.C[1] = vec_sensorData[sensor_index].C[1] ;
-        camInfo.C[2] = vec_sensorData[sensor_index].C[2] ;
-
+        camInfo.C[0] = vec_sensorData[sensor_index].C[0];
+        camInfo.C[1] = vec_sensorData[sensor_index].C[1];
+        camInfo.C[2] = vec_sensorData[sensor_index].C[2];
     }
-
 }
 
 /*********************************************************************
@@ -475,7 +459,7 @@ bool computeInstrinsicPerImages(
               const std::string & sImageDir,
               const std::string & sOutputDir,
               const std::string & sGpsFile,
-              const double & focalPixPermm,
+              const double & focalPix,
               const bool & bUsePrincipalPoint,
               const bool & bUseRigidRig,
               const bool & bUseGPS,
@@ -487,7 +471,7 @@ bool computeInstrinsicPerImages(
   std::sort(vec_image.begin(), vec_image.end());
 
   // create output
-  std::set<imageNameAndIntrinsic> camAndIntrinsics;
+  std::map<std::string, camInformation> camAndIntrinsics;
 
   C_Progress_display my_progress_bar_image( vec_image.size(),
   std::cout, "\n List computation progression:\n");
@@ -516,7 +500,6 @@ bool computeInstrinsicPerImages(
       iter_image = vec_image.begin();
       std::advance(iter_image, idx);
 
-      // Read meta data to fill width height and focalPixPermm
       sImageFilename = stlplus::create_filespec( sImageDir, *iter_image );
 
       // Test if the image format is supported:
@@ -598,14 +581,14 @@ bool computeInstrinsicPerImages(
                   vec_sensorData,
                   timestamp,
                   sensor_index,
-                  focalPixPermm,
+                  focalPix,
                   bUsePrincipalPoint,
                   bUseRigidRig);
 
               //export info
               #pragma omp critical
               {
-                  camAndIntrinsics.insert(std::make_pair(*iter_image, camInfo));
+                  camAndIntrinsics[*iter_image] = camInfo;
               }
 
           };
@@ -618,7 +601,7 @@ bool computeInstrinsicPerImages(
 
       } //endif format known
 
-  }; // looop on vector image
+  }; // loop on vector image
 
   if( sTimestampLower.empty() )
       sTimestampLower = minTimestamp;
@@ -654,58 +637,43 @@ bool computeInstrinsicPerImages(
   //now create openMVG camera views on remaing rigs
   openMVG::sfm::SfM_Data sfm_data;
   sfm_data.s_root_path = sImageDir;
-  std::map < camInformation, size_t > map_intrinsicIdPerCamId;
   size_t cpt = 0;
 
   // use only complete rigs
   std::set<std::string>::iterator  it = imageToRemove.end();
 
-  for( std::set<imageNameAndIntrinsic>::const_iterator iter=camAndIntrinsics.begin();
-       iter != camAndIntrinsics.end(); ++iter)
+  for( const auto & iter : camAndIntrinsics)
   {
     // check if we have to keep this timestamp
-    it = imageToRemove.find(iter->first);
+    it = imageToRemove.find(iter.first);
     if ( it == imageToRemove.end() )
     {
         // extract camera information
-        const camInformation    cam = iter->second;
-        const std::string  img_name = iter->first;
-
-        // extract informations relative to image (timestamp, subcam rotation and optical center)
+        const camInformation    cam = iter.second;
+        const std::string  img_name = iter.first;
         std::string  timestamp = cam.sRigName;
 
-        // update intrinsic ID map
-        const size_t  intrinsicID = map_intrinsicIdPerCamId.size();
-        if( map_intrinsicIdPerCamId.find(cam) == map_intrinsicIdPerCamId.end())
-        {
-            map_intrinsicIdPerCamId[cam] = intrinsicID;
-        }
-
-        // update views / pose map
-        const size_t  focal_id = map_intrinsicIdPerCamId[cam];
+        // Build the view corresponding to the image
         if( bUseRigidRig )
         {
-            sfm_data.views[cpt] = std::make_shared<openMVG::sfm::Rig_View>(img_name, cpt, focal_id, mapRigPerImage[cam.sRigName], cam.width, cam.height, mapRigPerImage[cam.sRigName], cam.subChan);
+            sfm_data.views[cpt] = std::make_shared<openMVG::sfm::Rig_View>(img_name, cpt, cpt, mapRigPerImage[cam.sRigName], cam.width, cam.height, mapRigPerImage[cam.sRigName], cam.subChan);
         }
         else
         {
-            sfm_data.views[cpt] = std::make_shared<openMVG::sfm::View>(img_name, cpt, focal_id, cpt, cam.width, cam.height);
+            sfm_data.views[cpt] = std::make_shared<openMVG::sfm::View>(img_name, cpt, cpt, cpt, cam.width, cam.height);
         }
 
-        // update intrinsics map (if not already set)
-        if ( sfm_data.intrinsics.count(focal_id) == 0 )
+        // update intrinsics map
+        if ( bUseRigidRig )
         {
-            if ( bUseRigidRig )
-            {
-                // update intrinsic data base with a subpose field
-                const openMVG::geometry::Pose3 pose(Mat3(cam.R).transpose(), Vec3(cam.C));
-                sfm_data.intrinsics[focal_id] = std::make_shared<openMVG::cameras::Rig_Pinhole_Intrinsic> (cam.width, cam.height, cam.focal, cam.px0, cam.py0, pose);
-            }
-            else
-            {
-                // No subpose to configure
-                sfm_data.intrinsics[focal_id] = std::make_shared<openMVG::cameras::Pinhole_Intrinsic> (cam.width, cam.height, cam.focal, cam.px0, cam.py0);
-            }
+            // update intrinsic data base with a subpose field
+            const openMVG::geometry::Pose3 pose(Mat3(cam.R).transpose(), Vec3(cam.C));
+            sfm_data.intrinsics[cpt] = std::make_shared<openMVG::cameras::Rig_Pinhole_Intrinsic> (cam.width, cam.height, cam.focal, cam.px0, cam.py0, pose);
+        }
+        else
+        {
+            // No subpose to configure
+            sfm_data.intrinsics[cpt] = std::make_shared<openMVG::cameras::Pinhole_Intrinsic> (cam.width, cam.height, cam.focal, cam.px0, cam.py0);
         }
 
         // Update pose prior if we have GPS informations
@@ -730,6 +698,11 @@ bool computeInstrinsicPerImages(
         }
         ++cpt;
     }
+  }
+
+  // Group intrinsics that share common properties
+  {
+    GroupSharedIntrinsics(sfm_data);
   }
 
   // Store SfM_Data views & intrinsic data
