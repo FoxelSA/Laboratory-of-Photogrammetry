@@ -83,13 +83,43 @@ bool isRangeValid(  const std::string& sTimestampLow,
   stl::split( sTimestampLow, "_", splitLow );
   stl::split( sTimestampUp, "_", splitUp );
 
+  // check that each character of timestamp are digits
+  bool  bIsAlpha = false ;
+
+  // check thaht all informations of timestamp bound are digits, excepts the separator
+  for( size_t l = 0 ; l < 2 ; ++l )
+  {
+      int i = 0 ;
+      // check that lower bound timstamp is composed of digits only
+      while (splitLow[l][i])
+      {
+          if ( !std::isdigit(splitLow[l][i]))
+          {
+              bIsAlpha = true ;
+          }
+          i++;
+      }
+
+      // check that upper bound timstamp is composed of digits only
+      i=0;
+      while (splitUp[l][i])
+      {
+          if ( !std::isdigit(splitUp[l][i]))
+          {
+              bIsAlpha = true ;
+          }
+          i++;
+      }
+  }
+
   // check that the two timestamps are in the format 0123456789_012345
-  if(  splitLow.size() == 2
-       && splitUp.size() == 2
-       && splitLow[0].size() == 10
-       && splitLow[1].size() == 6
-       && splitUp[0].size()  == 10
-       && splitUp[1].size()  == 6
+  if(  splitLow.size() == 2              // if timestamp is composed of two blocks of integer
+       && splitUp.size() == 2            // if timestamp is composed of two blocks of integer
+       && splitLow[0].size() == 10       // if first block is of size 10
+       && splitLow[1].size() == 6        // if second block is of size 6
+       && splitUp[0].size()  == 10       // if first block is of size 10
+       && splitUp[1].size()  == 6        // if second block is of size 6
+       && !bIsAlpha                      // if timestamp contains only digits
     )
   {
       // check that lower bound is less than upper
