@@ -77,7 +77,6 @@ SET(CMAKE_MODULE_PATH
 # --------------------------
 # Sphinx detection
 # ==============================================================================
-MESSAGE( STATUS "CMAKE_MODULE_PATH:         " ${CMAKE_MODULE_PATH} )
 FIND_PACKAGE(Sphinx)
   IF (EXISTS ${SPHINX_EXECUTABLE})
     SET(SPHINX_HTML_DIR "${CMAKE_CURRENT_BINARY_DIR}/htmlDoc")
