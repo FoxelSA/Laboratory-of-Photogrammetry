@@ -44,9 +44,9 @@ add_executable(openMVGRig_SfMInit_ImageListing
   list_utils.cpp
   main.cpp)
 
+add_dependencies(openMVGRig_SfMInit_ImageListing libfastcal ${OPENMVG_RIG_LIBRARY_LIST} )
 target_link_libraries(openMVGRig_SfMInit_ImageListing ${OPENMVG_RIG_LIBRARY_LIST})
 
-add_dependencies(openMVGRig_SfMInit_ImageListing ${OPENMVG_RIG_LIBRARY_LIST} )
 set(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/software)
 
 install(TARGETS openMVGRig_SfMInit_ImageListing DESTINATION ${CMAKE_INSTALL_PREFIX}/bin)

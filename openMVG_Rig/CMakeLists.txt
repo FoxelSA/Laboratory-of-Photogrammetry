@@ -67,6 +67,40 @@ endif()
 set(OPENMVG_RIG_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR} )
 
 # ==============================================================================
+# Additional cmake find modules
+# ==============================================================================
+SET(CMAKE_MODULE_PATH
+  ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmakeFindModules)
+
+# ==============================================================================
+# Documentation
+# --------------------------
+# Sphinx detection
+# ==============================================================================
+MESSAGE( STATUS "CMAKE_MODULE_PATH:         " ${CMAKE_MODULE_PATH} )
+FIND_PACKAGE(Sphinx)
+  IF (EXISTS ${SPHINX_EXECUTABLE})
+    SET(SPHINX_HTML_DIR "${CMAKE_CURRENT_BINARY_DIR}/htmlDoc")
+
+    CONFIGURE_FILE(
+      "${CMAKE_CURRENT_SOURCE_DIR}/docs/sphinx/rst/conf.py"
+      "${CMAKE_CURRENT_BINARY_DIR}/conf.py"
+      @ONLY)
+
+    ADD_CUSTOM_TARGET(doc ALL
+      ${SPHINX_EXECUTABLE}
+      -b html
+      "${CMAKE_CURRENT_SOURCE_DIR}/docs/sphinx/rst"
+      "${SPHINX_HTML_DIR}"
+      COMMENT "Building HTML documentation with Sphinx")
+
+    SET_PROPERTY(TARGET doc PROPERTY FOLDER OpenMVG_Rig )
+
+  ELSE (EXISTS ${SPHINX_EXECUTABLE})
+    MESSAGE("Sphinx need to be installed to generate the documentation")
+  ENDIF (EXISTS ${SPHINX_EXECUTABLE})
+
+# ==============================================================================
 # OpenMP detection
 # ==============================================================================
 find_package(OpenMP)
