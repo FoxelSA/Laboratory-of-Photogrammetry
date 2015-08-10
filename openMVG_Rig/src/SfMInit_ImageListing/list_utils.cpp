@@ -399,16 +399,57 @@ void computeImageIntrinsic(
 }
 
 /*********************************************************************
+*  keep only rigs in timestamp range
+*
+*********************************************************************/
+
+void keepRigsInTimestampRange(
+           std::set <string> & imageToRemove,
+           const std::map<std::string, std::vector<string> > & mapSubcamPerTimestamp,
+           const std::string& sTimestampLower,
+           const std::string& sTimestampUpper )
+{
+      // Initialize variables
+      li_Size_t               k = 0;
+      li_Size_t               i = 0;
+      std::map < std::string, std::vector<string> >::const_iterator iter_timestamp = mapSubcamPerTimestamp.begin();
+
+      // check timestamp range validity
+      bool validRange = isRangeValid(sTimestampLower, sTimestampUpper);
+      if( !validRange )
+      {
+          std::cerr << "\n[keepRepresentativeRigs::WARNING] openMVG will use all images, timestamp range is not valid " << std::endl;
+      }
+
+      // remove rig not having the max occurrence subcam number
+      for( k = 0 ; k < mapSubcamPerTimestamp.size(); ++k )
+      {
+          //advance iterator
+          iter_timestamp = mapSubcamPerTimestamp.begin();
+          std::advance(iter_timestamp, k);
+
+          //update map
+          if( ( iter_timestamp->first < sTimestampLower && validRange )
+              || ( iter_timestamp->first > sTimestampUpper && validRange )
+            )
+          {
+              for( i  = 0 ; i < iter_timestamp->second.size() ; ++i )
+              {
+                  imageToRemove.insert( iter_timestamp->second[i] );
+              }
+          }
+      }
+}
+
+
+/*********************************************************************
 *  keep only most representative rigs
 *
 *********************************************************************/
 
 void keepRepresentativeRigs(
           std::set <string> & imageToRemove,
-          const std::map<std::string, std::vector<string> > & mapSubcamPerTimestamp,
-          const size_t imageNumber,
-          const std::string& sTimestampLower,
-          const std::string& sTimestampUpper )
+          const std::map<std::string, std::vector<string> > & mapSubcamPerTimestamp )
 {
     // check the number of subcamera per rig. Remove less representated rigs.
     li_Size_t timeStamp = 0;
@@ -460,13 +501,6 @@ void keepRepresentativeRigs(
 
     }
 
-    // check timestamp range validity
-    bool validRange = isRangeValid(sTimestampLower, sTimestampUpper);
-    if( !validRange )
-    {
-        std::cerr << "\n[keepRepresentativeRigs::WARNING] openMVG will use all images, timestamp range is not valid " << std::endl;
-    }
-
     // remove rig not having the max occurrence subcam number
     for( k = 0 ; k < mapSubcamPerTimestamp.size(); ++k )
     {
@@ -475,10 +509,7 @@ void keepRepresentativeRigs(
         std::advance(iter_timestamp, k);
 
         //update map
-        if(    iter_timestamp->second.size() != subCamNumber
-            || ( iter_timestamp->first < sTimestampLower && validRange )
-            || ( iter_timestamp->first > sTimestampUpper && validRange )
-          )
+        if(    iter_timestamp->second.size() != subCamNumber )
         {
             for( i  = 0 ; i < iter_timestamp->second.size() ; ++i )
             {
@@ -487,10 +518,9 @@ void keepRepresentativeRigs(
         }
     }
 
-    std::cout << " OpenMVG will use " << imageNumber - imageToRemove.size()
-              << " of " << imageNumber << " input images "
-              << std::endl << std::endl;
-
+    std::cout << "\n\n Max rig occurence is " << max_Occurence
+          << ", rig number of sub cameras is " << subCamNumber
+          << std::endl;
 }
 
 /*********************************************************************
@@ -657,11 +687,24 @@ bool computeInstrinsicPerImages(
 
   // keep only most represented rig
   std::set < std::string >  imageToRemove;
-  keepRepresentativeRigs( imageToRemove,
-                          mapSubcamPerTimestamp,
-                          camAndIntrinsics.size(),
-                          sTimestampLower,
-                          sTimestampUpper);
+  const bool    bKeepRepresentativeRigs = false;
+
+  // if we use rigid rig structure, keep most representative rigs
+  if( bUseRigidRig || bKeepRepresentativeRigs)
+  {
+      keepRepresentativeRigs( imageToRemove,
+                              mapSubcamPerTimestamp );
+  }
+
+  // keep only poses in defined timestamp range
+  keepRigsInTimestampRange( imageToRemove,
+                            mapSubcamPerTimestamp,
+                            sTimestampLower,
+                            sTimestampUpper);
+
+  std::cout << " OpenMVG will use " << camAndIntrinsics.size() - imageToRemove.size()
+            << " of " << camAndIntrinsics.size() << " input images "
+            << std::endl << std::endl;
 
   //load json file
   SfM_Gps_Data  loaded_GPS_Data;

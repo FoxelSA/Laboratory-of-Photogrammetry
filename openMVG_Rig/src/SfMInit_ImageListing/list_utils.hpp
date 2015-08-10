@@ -263,17 +263,36 @@ void computeImageIntrinsic(
 *
 * \param imageToRemove            Set of image to remove
 * \param mapSubcamPerTimestamp    Mapping timestamp to associated images and subcameras
-* \param imageNumber              The number of input images
-* \param sTimestampLower          Lower bound for timestamp interval
-* \param sTimestampUpper          Upper bound for timestamp interval
 *
 * \return The set of image not usable for reconstruction in set imageToRemove
 */
 
 void keepRepresentativeRigs(
            std::set <string> & imageToRemove,
+           const std::map<std::string, std::vector<string> > & mapSubcamPerTimestamp
+);
+
+/*********************************************************************
+*  keep only rigs in timestamp range
+*
+*********************************************************************/
+
+/*! \brief Analyze images and keep rigs in predefined timestmap range
+*
+* This function analyse image list and keep only poses that are in a given
+* timestamp range. It create a set of image to remove
+*
+* \param imageToRemove            Set of image to remove
+* \param mapSubcamPerTimestamp    Mapping timestamp to associated images and subcameras
+* \param sTimestampLower          Lower bound for timestamp interval
+* \param sTimestampUpper          Upper bound for timestamp interval
+*
+* \return The set of image not usable for reconstruction in set imageToRemove
+*/
+
+void keepRigsInTimestampRange(
+           std::set <string> & imageToRemove,
            const std::map<std::string, std::vector<string> > & mapSubcamPerTimestamp,
-           const size_t imageNumber,
            const std::string& sTimestampLower,
            const std::string& sTimestampUpper
 );
