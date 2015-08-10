@@ -212,7 +212,7 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-  ('index', 'openMVG_eig.tex', u'openMVG_rig Documentation',
+  ('index', 'openMVG_rig.tex', u'openMVG_rig Documentation',
    u'Pierre MOULON \\& Stephane FLOTRON', 'manual'),
 ]
 
