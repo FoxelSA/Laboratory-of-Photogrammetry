@@ -1,0 +1,225 @@
+\documentclass[a4paper, 10pt]{article}
+
+%\usepackage{../preambule}
+\usepackage[latin1]{inputenc}
+\usepackage[french]{babel}
+\usepackage{amsmath}
+\usepackage{amssymb}
+%\usepackage{bbm}
+\usepackage{lscape}
+\usepackage{inputenc}
+%\usepackage[refpage,french,noprefix]{nomencl}
+\usepackage{lmodern}
+\usepackage{url}
+\usepackage{float, graphicx}
+\usepackage[sectionbib]{chapterbib}
+
+\author{ St\'ephane Flotron }
+\title{\textbf{A new Global Pipeline solving the non-central camera SfM}}
+
+\renewcommand{\tilde}{\widetilde}
+\renewcommand{\t}{\mathbf{t}}
+\renewcommand{\d}{\mathbf{d}}
+\newcommand{\m}{\mathbf{m}}
+\newcommand{\x}{\mathbf{x}}
+\newcommand{\X}{\mathbf{X}}
+\newcommand{\y}{\mathbf{y}}
+\newcommand{\0}{\mathbf{0}}
+\newcommand{\R}{\mathbb{R}}
+\renewcommand{\P}{\mathbb{P}}
+\newcommand{\I}{\mathbb{I}}
+
+\begin{document}
+   \maketitle
+   
+   \section{ Preambule }
+   
+   \subsection{On the Plücker line representation}
+   
+   Let $L$ be a line of the 3D space $\R^3$ defined by the point $\x$ and $\y$. Let us now define $\d$ as 
+   \begin{equation*}
+       \d = \y-\x.
+   \end{equation*}
+   Then, The cartesian representation of the line $L$ is 
+   \begin{equation*}
+       L : \x + \alpha \d, \ \alpha \in \R.
+   \end{equation*}
+   This representation of the line does not allow the use of homogenuous coordinates. Hence, a solution is to use Plücker
+   line representation of $L$, $L : (\d,\m)$, where $\d$ and $\m$ are two vectors of $\R^3$ defined as :
+   \begin{equation}
+        \label{dandm}
+       \d = \y-\x \mbox{ and } \m = (\x-\0) \wedge (\y-\0),
+   \end{equation}
+   where $\0$ is the origin of $\R^3$.
+   
+   \paragraph{}We now interess us to intersection of lines represented in Plücker coordinates frame.
+   Let $L_1 : (\d_1, \m_1)$ and $L_2 : (\d_2, \m_2)$ two lines of $\R^3$ represented by Plücker
+   line coordinates. $L_1$ intersect $L_2$ if and only if $L_1$ and $L_2$ are coplanar. In terms of Plücker 
+   coordinates, this condition is the following :
+   \begin{equation}
+       \label{coplanarity condition}
+       L_1 \cap L_2 \neq \emptyset \iff \d_1 \cdot \m_2 + \d_2 \cdot \m_1 = 0.
+   \end{equation}
+
+   \subsubsection*{Remark}
+    In the case where $\x$ and $\y$ belongs to $\P^3$, the above definition of $\d$ and $\m$ doest not hold anymore.
+    Let us defined $p_{ij}$ as 
+    \begin{equation*}
+        p_{ij} = \left| 
+             \begin{array}{cc}
+                x_i & y_i \\
+                x_j & y_j 
+            \end{array}
+        \right|.
+    \end{equation*}
+    Then $\d$ and $\m$ are defined as
+    \begin{equation}
+           \d^T = (p_{01},\ p_{02},\ p_{03}) \mbox{ and } \m^T = (p_{23},\ p_{31},\ p_{12}). 
+    \end{equation}
+    Taking $\x = (1, x_1, x_2, x_3)$, $\y = (1, y_1, y_2, y_3)$ and using the above definition, 
+    we recover $\d$ and $\m$ defined by relation \eqref{dandm}.
+    
+    \subsubsection{Rigid transformation of line represented by Plücker coordinates}
+    
+    Let $\x$ and $\y$ be two vectors of $\R^3$ defining a line $L$. Here, we represent $L$ using Plücker line
+    coordinates, $L : (m,d)$. We apply to $L$ the rigid transformation $f(\X) = R( \X-\t), \ \forall \X \in \R^3$, 
+    where $R$ is a rotation matrix and $\t \in \R^3$. Denoting $L'=f(L)$ with Plücker coordinate $(\d', \m')$, 
+    how are $\d'$ and $\m'$ related to $\m$ and $\d$ ? Using the definition \eqref{dandm} of $\d$ and $\m$, we have
+    \begin{eqnarray*}
+         \d' & = & f(\y) - f(\x) \\
+             & = & R(\y-\t) -R(\x-\t) \\
+             & = & R\y - R\x \\
+             & = & R(\y-\x) \\
+             & = & R\d.
+    \end{eqnarray*}
+    Similary, we have
+    \begin{eqnarray*}
+        \m' & = & f(\x) \wedge f(\y) \\
+            & = & R(\x-\t) \wedge R(\y-\t) \\
+            & = & R \x \wedge R\y - R\t \wedge R \y - R\x \wedge R \t \\
+            & = & R( \x \wedge \y) - R\t \wedge R(\y-\x) \\
+            & = & R( \x \wedge \y) - R( \t \wedge (\y -\x) \\
+            & = & R \m - R ( \t \wedge \d ).
+    \end{eqnarray*}
+    Hence, for the rigid tranformation $f$ defined by $f(\X) = R(\X-\t)$, we have
+    \begin{equation}
+       \label{plucker-transform}
+        \d' = R\d \mbox{   and   } \m' = R\m - R ( \t \wedge \d ).
+    \end{equation}
+    The relation \eqref{plucker-transform} will be very useful to derive the generalized epipolar constraint.
+    
+    \subsection{The generalized epipolar camera model}
+
+    Let $L_1$ and $L_2$ be rays related to the same 3D point seen by two cameras, respectively camera 1 and camera 2. We suppose that the Plücker line
+    representation of $L_1$ and $L_2$ are known and denoted by
+    \begin{equation*}
+         L_1 : (\d_1, \m_1) \mbox{   and   } L_2 : (\d_2, \m_2 ).
+    \end{equation*}
+    We equally assume that $L_1$ in represented in camera 1 coordinate frame and that $L_2$ in represented in camera 2 coordinate frame.
+    Without loss of generality, we can assume that camera 1 has pose $(\I_3 | \0)$ and that camera 2 has pose $(R, \t)$, where $R$ the orientation of
+    the second camera with respect to the first and $\t$ the translation of second camera if camera 1 coordinate frame. 
+    Denoting by $\X$ a point in camera one coordiante frame, it could be expressed in camera 2 coordinate frame by
+    $$ \x_{cam}^2 = R\x_{cam}^1 + \t.$$
+    Therefore, the coordinate of camera two expressed in camera one coordinate frame are 
+    $
+        \x_{cam}^1 = R^T( \x_{cam}^2 - \t). 
+    $
+    Hence, $L_2$ in camera one coordinate frame is given by :
+    \begin{equation}
+        L^2 : (R^T \d_2, R^T \m_2 - R^T (\t \wedge \d_2).
+    \end{equation}
+    Since $L_1$ and $L_2$ are seeing the same 3D point $\X$, the lines must intersect. From condition \eqref{coplanarity condition}, we have
+    \begin{equation*}
+        \d_1^T R^T \m_2 - \d_1^T R^T (\t \wedge \d_2 ) + \m_1^T R^T \d_2 = 0,  
+    \end{equation*}
+    which is equivalent to 
+    \begin{equation}
+        \label{ray intersection}
+        \m_2^T R \d_1 + \d_2^T [\t]_{\times} R \d_1 + \d_2^T R \m_1 = 0.
+    \end{equation}
+    Writing equation \eqref{ray intersection} in a matricial form, we obtain the following expression
+    \begin{equation}
+        \label{generalized epipolar}
+        (\d_2^T\ \m_2^T ) \left[ 
+          \begin{array}{cc}
+              [\t]_{\times} R & R \\
+              R & \0 
+          \end{array}
+           \right] 
+           \left( 
+               \begin{array}{c}
+                   \d_1 \\
+                   \m_1
+               \end{array}
+           \right)
+           = 0
+    \end{equation}
+    which the generalized epipolar condition. Let us remark that if we consider central camera, the momentums $\m_1$ and $\m_2$
+    are equal to $\0$ because the rays passes through the origin. Then relation \eqref{generalized epipolar} reduces to
+    $$ \d_2^T [\t]_{\times} R \d_1 = 0$$
+    which is nothing else than the classical epipolar condition. Therefore \eqref{generalized epipolar} is really
+    a generalization of the epipolar condition.
+
+    
+    \section*{Estimation des translations inter-rigs}
+    
+       Dans le cadre de document, nous travaillons sur des rigs calibrés et nous supposons également que les rotations globales
+   $R_i$ entre les rigs sont connues. Nous désirons maintenant estimer les translations globales $\t_i$ entre les rigs.
+   
+   \paragraph{} Nous supposons également connues des tracks entre les rigs, i.e. des correspondances entre des sous-caméras 
+   du rigs, et que ces tracks sont de longueurs 3 au minimum. Par cela, nous entendons que les point 3D doivent êtres vu par
+   un minimum d'au moins trois rigs. La méthode que nous allons présenter ici est basée sur celle développée par Pierre Moulon 
+   lors de sa thèse de doctorat. 
+    
+    Suivant les travaux de Pierre, nous définissons la mesure de similarité inter-rig par
+    \begin{equation}
+        \label{similarity}
+        \begin{aligned}
+        & \rho(\t_i, X_j) && = \left \| \left (
+                              x_j^{c,i}(1) - \frac{(R_c R_i X_j + R_c \t_i + \t_c)^1}{(R_c R_i X_j + R_c \t_i + \t_c)^3}, \right. \right. \\
+                           &&& \qquad \qquad \qquad  \left. \left. x_j^{c,i}(2) - \frac{(R_c R_i X_j + R_c \t_i + \t_c)^2}{(R_c R_i X_j + R_c \t_i + \t_c)^3}
+                          \right) \right\|_\infty
+        \end{aligned}
+    \end{equation}
+    où 
+    \begin{itemize}
+        \item[$x_j^{c,i}$] est le pixel de la sous-caméra $c$ du rig $i$ correspondant au point $X_j$ 
+        \item[$X_j$] est un point 3D,
+        \item[$R_c$] est la rotation de la sous-caméra $c$ du rig $i$ voyant le point 3D $X_j$  (dans le réferentiel du rig),
+        \item[$R_i$] est la rotation globale du rig $i$,
+        \item[$\t_i$] est la translation globale du rig $i$,
+        \item[$\t_c$] est la translation de la sous-caméra $c$ du rig $i$ voyant le point 3D $X_j$ (dans le référentiel du rig).
+    \end{itemize}
+
+   \subsection*{Modèle paramétrique (tenseurs trifocaux réduits)}
+   
+   Nous considérons ici un triplet de rigs $(I,J,K)$. Le problème que l'on cherche à résoudre pour calculer les translations inter-rigs
+   $\t_1, \t_2= \t_{IJ}, \t_3 = \t_{IK}$ est alors 
+   \begin{equation}
+       \label{parametric model}
+       \begin{aligned}
+           \mbox{minimiser}_{\{\t_i\}_i, \{X_j\}_j}  && \quad  & \gamma &&& \\
+           &&&&&\\
+           \mbox{tel que} && \ & \rho(\t_i, X_j) \leq \gamma && \forall i, j \in \{1,2,3,4\} \\
+            & && (R_c R_i X_j + R_c \t_i + \t_c)^3 \geq 1 & \ & \forall i,j \\
+            &&& \t_1 = (0,0,0) &&
+       \end{aligned}
+   \end{equation}
+   Il suffit de quatre points pour estimer le modèle. L'estimation du modèle sera faite avec AC-RANSAC pour un seuil fixe de $\gamma=0.5$ pixels.
+   Pour plus d'informations sur ce modèle, nous nous référons à la thèse de Pierre.
+   
+   \subsection*{Note}
+   La contrainte $\rho(\t_i, X_j) \leq \gamma$ est équivalente à 
+   \begin{equation*}
+       \rho(\t_i, X_j) \leq \gamma \Leftrightarrow \left\{
+         \begin{aligned}
+            & X_j\left[ (R_cR_i)^k + (\gamma-x_j^{c,i}(k)) \right] + \left[R_c^3(\gamma-x_j^{c,i}(k))+R_c^k\right]\t_i  \\
+            & \qquad \qquad + [\t_c^k + (\gamma-x_j^{c,i}(k))\t_c^3] \geq 0 \\
+            & X_j\left[ (R_cR_i)^k - (\gamma + x_j^{c,i}(k)) \right] + \left[-R_c^3(\gamma+x_j^{c,i}(k))+R_c^k\right]\t_i  \\
+            & \qquad \qquad + [\t_c^k - (\gamma+x_j^{c,i}(k))\t_c^3] \leq 0 \\
+         \end{aligned}
+       \right\}, \ \forall k \in {1,2}.
+   \end{equation*}
+   et comme $R_c$ et $\t_c$ sont connus, le problème ci-dessus est linéaire en $R_i$ et $\t_i$.
+   
+\end{document}
