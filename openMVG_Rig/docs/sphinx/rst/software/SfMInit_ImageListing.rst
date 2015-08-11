@@ -115,7 +115,7 @@ Once your have computed your dataset description you can compute the image featu
 From lists.txt to sfm_data.json
 ---------------------------------
 
-Old openMVG version (<0.8) use a lists.txt file to describer image parameters.
+Old openMVGRig version (<0.2) use a lists.txt file to describer image parameters.
 
 Example of a lists.txt file where focal is known in advance
 
