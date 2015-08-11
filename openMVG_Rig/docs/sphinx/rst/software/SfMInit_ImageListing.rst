@@ -33,27 +33,25 @@ Arguments description:
 
 **Optional parameters:**
 
-
-
-
-
-[-b|--upperBound] upper bound limit for timestamp
-[-f|--focal] (pixels)
-[-g|--gps] GPU/IMU json file
-
   - **[-c|--channelFile]**  list of subposes to keep for 3D reconstruction
 
   - **[-r|--rigidRig]** Use non central camera structure (i.e use rigid rig or not)
-     -r 0 : no rigid rig
-     -r 1 : with rigid rig structure (default)
+  
+    - 0: no rigid rig
+    - 1: with rigid rig structure (default)
 
   - **[-p|--useCalibPrincipalPoint]** Use principal point of calibration or not
-     -p 0 : do not use calibration principal point
-     -p 1 : use calibration principal point (default)
+  
+    - 0: do not use calibration principal point
+    - 1: use calibration principal point (default)
 
-  - **[-a|--lowerBound]** lower bound limit for timestamp. If image timestamp is less than lower bound, do not use it for 3D reconstruction
+  - **[-a|--lowerBound]** lower bound limit for timestamp. 
+      
+    If image timestamp is less than lower bound, do not use it for 3D reconstruction
 
-  - **[-b|--upperBound]** upper bound limit for timestamp. If image timestamp is bigger than upper bound, do not use it for 3D reconstruction
+  - **[-b|--upperBound]** upper bound limit for timestamp. 
+  
+    If image timestamp is bigger than upper bound, do not use it for 3D reconstruction
 
   - **[-f|--focal]** (value in pixels)
 
