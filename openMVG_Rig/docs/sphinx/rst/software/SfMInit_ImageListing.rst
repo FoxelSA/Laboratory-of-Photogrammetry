@@ -57,12 +57,53 @@ Arguments description:
 
   - **[-g|--gps]** JSON file containing GPS / IMU measurements for each pose.
 
+**Examples**
+
+Before using the software, you could create a file where the channel you will use are stored, one channel number per line, with no space before and after the number. For example, such a file could be named channel.txt and will look like
+
+.. code-block:: c++
+
+   10
+   14
+   24
+   25
+
+The general usage of openMVGRig_SfMInit_ImageListing is 
+
 .. code-block:: c++
 
   // Example
-  $ openMVGRig_SfMInit_ImageListing  -i /home/user/Dataset/ImageDataset_SceauxCastle/images -o /home/user/Dataset/ImageDataset_SceauxCastle/matches -m aa-bb-cc-dd-ee-ff -d /data/
+  $ openMVGRig_SfMInit_ImageListing  -i images -o matches -m aa-bb-cc-dd-ee-ff -d /data/
 
 It will produce you a sfm_data.json file that is used by openMVGRig as a scene description.
+
+For lists.txt file using rig structure, principal point, focal of calibration and only a subset of subposes,
+
+.. code-block:: c++
+
+  // Example
+  $ listomvg -i images/ -o matches/ -m AA-BB-CC-DD-EE-FF -d /data/ -c channel.txt
+
+For lists.txt file with timestamp range and rig structure, 
+
+.. code-block:: c++
+
+  // Example
+  $ listomvg -i images/ -o matches/ -m AA-BB-CC-DD-EE-FF -d /data/ -a 012345679_012345 -b 1234567890_012345
+
+For lists.txt file with constant focal and principal point at the center of image, 
+
+.. code-block:: c++
+
+  // Example
+  $ listomvg -i images/ -o matches/ -m AA-BB-CC-DD-EE-FF -d /data/ -f 2050 -p 0
+
+For lists.txt file using principal point, focal of calibration and no rig structure,
+
+.. code-block:: c++
+
+  // Example
+  $ listomvg -i images/ -o matches/ -m AA-BB-CC-DD-EE-FF -d /data/ -r 0 
 
 Once your have computed your dataset description you can compute the image features:
 
