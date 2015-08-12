@@ -1,6 +1,3 @@
-cmake_minimum_required(VERSION 2.4.6)
-#project(opengv)
-
 set (OPENGV_VERSION_MAJOR 1)
 set (OPENGV_VERSION_MINOR 0)
 
@@ -15,28 +12,28 @@ set (OPENGV_VERSION_MINOR 0)
 set(CMAKE_BUILD_TYPE Release)
 
 #set the default path for built executables to the "bin" directory
-set(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin)
+set(EXECUTABLE_OUTPUT_PATH ${CMAKE_CURRENT_BINARY_DIR}/bin)
 #set the default path for built libraries to the "lib" directory
-set(LIBRARY_OUTPUT_PATH ${PROJECT_BINARY_DIR}/lib)
+set(LIBRARY_OUTPUT_PATH ${CMAKE_CURRENT_BINARY_DIR}/lib)
 
-# get eigen (and boost under windows)
+# ==============================================================================
+# find dependencies (boost and eigen)
+# ==============================================================================
+# set opengv source directory
 set(OPENGV_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR} )
-set(CMAKE_MODULE_PATH_OLD ${CMAKE_MODULE_PATH})
 
-IF(WIN32)
-  set(ADDITIONAL_INCLUDE_DIRS ${OPENGV_SOURCE_DIR}/third_party
-                              ${OPENGV_SOURCE_DIR}/third_party/eigen3
-                              ${OPENGV_SOURCE_DIR}/third_party/eigen3/unsupported )
-ELSE()
-  unset( CMAKE_MODULE_PATH )
-  set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${OPENGV_SOURCE_DIR}/modules/")
-  find_package(Eigen REQUIRED)
-  set(ADDITIONAL_INCLUDE_DIRS ${EIGEN_INCLUDE_DIRS} ${EIGEN_INCLUDE_DIR}/unsupported )
-ENDIF()
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH_OLD})
+# get eigen
+find_package(Boost REQUIRED)
 
-include_directories(${OPENMVG_INCLUDE_DIRS} ${OPENGV_SOURCE_DIR}/include)
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${OPENGV_SOURCE_DIR}/modules/")
+find_package(Eigen REQUIRED)
 
+SET(OPENGV_INCLUDE_DIR ${OPENMVG_INCLUDE_DIRS} ${OPENGV_SOURCE_DIR}/include/ ${Boost_INCLUDE_DIRS} ${EIGEN_INCLUDE_DIR} ${EIGEN_INCLUDE_DIR}/unsupported/ )
+include_directories(${OPENGV_INCLUDE_DIR})
+
+# ==============================================================================
+# list source file
+# ==============================================================================
 set( OPENGV_SOURCE_FILES
   src/absolute_pose/modules/main.cpp
   src/absolute_pose/modules/gp3p/code.cpp
@@ -110,6 +107,10 @@ set( OPENGV_SOURCE_FILES
   src/relative_pose/MANoncentralRelativeMulti.cpp
   src/point_cloud/MAPointCloud.cpp )
 
+# ==============================================================================
+# list header file
+# ==============================================================================
+
 set( OPENGV_HEADER_FILES
   include/opengv/types.hpp
   include/opengv/OptimizationFunctor.hpp
@@ -152,11 +153,9 @@ set( OPENGV_HEADER_FILES
   include/opengv/relative_pose/MANoncentralRelativeMulti.hpp
   include/opengv/point_cloud/MAPointCloud.hpp )
 
-IF(WIN32)
-  add_library( opengv ${OPENGV_SOURCE_FILES} ${OPENGV_HEADER_FILES} )
-  add_library( random_generators test/random_generators.cpp test/random_generators.hpp test/experiment_helpers.cpp test/experiment_helpers.hpp test/time_measurement.cpp test/time_measurement.hpp )
-ELSE()
-  add_library( opengv SHARED ${OPENGV_SOURCE_FILES} ${OPENGV_HEADER_FILES} )
-  add_library( random_generators SHARED test/random_generators.cpp test/random_generators.hpp test/experiment_helpers.cpp test/experiment_helpers.hpp test/time_measurement.cpp test/time_measurement.hpp )
+# ==============================================================================
+# compile library
+# ==============================================================================
+  add_library( opengv STATIC ${OPENGV_SOURCE_FILES} ${OPENGV_HEADER_FILES} )
+  add_library( random_generators STATIC test/random_generators.cpp test/random_generators.hpp test/experiment_helpers.cpp test/experiment_helpers.hpp test/time_measurement.cpp test/time_measurement.hpp )
   target_link_libraries(random_generators opengv)
-ENDIF()

@@ -41,6 +41,7 @@
 # Go to subdirectory
 # ==============================================================================
 add_subdirectory(lib)
+add_subdirectory(external)
 add_subdirectory(SfMInit_ImageListing)
 add_subdirectory(ExportMatches)
 add_subdirectory(GlobalSfM)
