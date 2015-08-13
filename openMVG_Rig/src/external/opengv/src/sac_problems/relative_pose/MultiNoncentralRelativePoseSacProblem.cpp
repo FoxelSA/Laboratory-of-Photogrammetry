@@ -45,7 +45,7 @@ opengv::sac_problems::relative_pose::MultiNoncentralRelativePoseSacProblem::
     model_t & outModel ) const
 {
   bool returnValue = true;
-  
+
   if(!_asCentral)
   {
     switch(_algorithm)
@@ -56,9 +56,9 @@ opengv::sac_problems::relative_pose::MultiNoncentralRelativePoseSacProblem::
             _adapter,_adapter.convertMultiIndices(indices));
         break;
       }
-      case GE:
+      case GEM:
       {
-        geOutput_t output2;                
+        geOutput_t output2;
         opengv::relative_pose::ge(
             _adapter, _adapter.convertMultiIndices(indices), output2 );
         outModel.block<3,3>(0,0) = output2.rotation;
@@ -66,7 +66,7 @@ opengv::sac_problems::relative_pose::MultiNoncentralRelativePoseSacProblem::
         break;
       }
       case SIXPT:
-      {          
+      {
         //ok, this block is a bit fancy now, don't ask
         std::vector<int> sindices;
         //set it to a random cam index where to start
@@ -75,7 +75,7 @@ opengv::sac_problems::relative_pose::MultiNoncentralRelativePoseSacProblem::
         std::vector<int> tempIndices;
         for( int i = 0; i < (int) indices.size(); i++ )
           tempIndices.push_back(0);
-        
+
         bool isDone = true;
         for( int i = 0; i < (int) tempIndices.size(); i++ )
         {
@@ -85,7 +85,7 @@ opengv::sac_problems::relative_pose::MultiNoncentralRelativePoseSacProblem::
             break;
           }
         }
-        
+
         while( !isDone )
         {
           while( tempIndices[binIndex] >= (int) indices[binIndex].size() )
@@ -94,15 +94,15 @@ opengv::sac_problems::relative_pose::MultiNoncentralRelativePoseSacProblem::
             if( binIndex >= indices.size() )
               binIndex = 0;
           }
-          
+
           sindices.push_back( _adapter.convertMultiIndex(
               binIndex, indices[binIndex][tempIndices[binIndex]] ) );
           (tempIndices[binIndex])++;
-          
+
           binIndex++;
           if( binIndex >= indices.size() )
             binIndex = 0;
-          
+
           isDone = true;
           for( int i = 0; i < (int) tempIndices.size(); i++ )
           {
@@ -113,19 +113,19 @@ opengv::sac_problems::relative_pose::MultiNoncentralRelativePoseSacProblem::
             }
           }
         }
-        
+
         std::vector<int> indices6;
         for( int i = 0; i < 6; i++ )
           indices6.push_back(sindices[i]);
         rotations_t rotations = opengv::relative_pose::sixpt(_adapter,indices6);
-        
+
         //now find a translation for each rotation!
         //as a matter of fact, this should be similar to the end of ge ...
         transformations_t transformations;
         for( size_t r = 0; r < rotations.size(); r++ )
         {
           Eigen::Matrix4d G = Eigen::Matrix4d::Zero();
-          
+
           for( int i = 0; i < 6; i++ )
           {
             //extract the features
@@ -133,7 +133,7 @@ opengv::sac_problems::relative_pose::MultiNoncentralRelativePoseSacProblem::
                 _adapter.getBearingVector1(sindices[i]);
             bearingVector_t f2 = _adapter.getCamRotation2(sindices[i]) *
                 _adapter.getBearingVector2(sindices[i]);
-            
+
             //extract the skew symmetric of the camera offsets
             Eigen::Vector3d t1 = _adapter.getCamOffset1(sindices[i]);
             Eigen::Matrix3d t1_skew = Eigen::Matrix3d::Zero();
@@ -143,7 +143,7 @@ opengv::sac_problems::relative_pose::MultiNoncentralRelativePoseSacProblem::
             t1_skew(1,0) =  t1[2];
             t1_skew(2,0) = -t1[1];
             t1_skew(2,1) =  t1[0];
-                
+
             Eigen::Vector3d t2 = _adapter.getCamOffset2(sindices[i]);
             Eigen::Matrix3d t2_skew = Eigen::Matrix3d::Zero();
             t2_skew(0,1) = -t2[2];
@@ -152,18 +152,18 @@ opengv::sac_problems::relative_pose::MultiNoncentralRelativePoseSacProblem::
             t2_skew(1,0) =  t2[2];
             t2_skew(2,0) = -t2[1];
             t2_skew(2,1) =  t2[0];
-                
+
             //Now compute the "generalized normal vector"
             Eigen::Vector4d g;
             g.block<3,1>(0,0) = f1.cross(rotations[r]*f2);
             g[3] = f1.transpose() *
                 (t1_skew*rotations[r]-rotations[r]*t2_skew) * f2;
-            
+
             //Now put that onto G
             Eigen::Matrix4d newElement = g * g.transpose();
             G = G + newElement;
           }
-          
+
           //decompose G to find the rotation
           Eigen::ComplexEigenSolver< Eigen::Matrix4d > Eig(G,true);
           Eigen::Matrix<std::complex<double>,4,4> V = Eig.eigenvectors();
@@ -175,7 +175,7 @@ opengv::sac_problems::relative_pose::MultiNoncentralRelativePoseSacProblem::
             transformation(k,3) = (1.0/factor) * V(k,0).real();
           transformations.push_back(transformation);
         }
-        
+
         //and finally do the disambiguation (using three more features)
         //collect qualities for each of the solutions
         Eigen::Matrix<double,4,1> p_hom;
@@ -209,7 +209,7 @@ opengv::sac_problems::relative_pose::MultiNoncentralRelativePoseSacProblem::
             inverseSolution.block<3,3>(0,0) = directRotation.transpose();
             inverseSolution.col(3) =
                 -inverseSolution.block<3,3>(0,0)*directTranslation;
-            
+
             p_hom.block<3,1>(0,0) =
                 opengv::triangulation::triangulate2(_adapter,sindices[k]);
             bearingVector_t reprojection1 = p_hom.block<3,1>(0,0);
@@ -233,12 +233,12 @@ opengv::sac_problems::relative_pose::MultiNoncentralRelativePoseSacProblem::
             bestQualityIndex = i;
           }
         }
-        
+
         if( bestQualityIndex == -1 )
           returnValue = false; // no solution found
         else
           outModel = transformations[bestQualityIndex];
-          
+
         break;
       }
     }
@@ -364,7 +364,7 @@ opengv::sac_problems::
         sampleSize = 17;
         break;
       }
-      case GE:
+      case GEM:
       {
         sampleSize = 8;
         break;

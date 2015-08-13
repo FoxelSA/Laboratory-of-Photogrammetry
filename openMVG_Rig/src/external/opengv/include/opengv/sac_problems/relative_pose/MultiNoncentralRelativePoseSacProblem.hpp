@@ -78,12 +78,12 @@ public:
   typedef transformation_t model_t;
   /** The type of adapter that is expected by the methods */
   typedef opengv::relative_pose::RelativeMultiAdapterBase adapter_t;
-  
+
   /** The possible algorithms for solving this problem */
   typedef enum Algorithm
   {
     SIXPT = 0,      // [16]
-    GE = 1,         // []
+    GEM = 1,         // []
     SEVENTEENPT = 2 // [12]
   } algorithm_t;
 

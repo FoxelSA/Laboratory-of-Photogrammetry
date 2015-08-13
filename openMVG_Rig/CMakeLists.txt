@@ -126,6 +126,12 @@ find_package(OpenMVG REQUIRED)
 set(LIBFASTCAL_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/lib/libfastcal/src/)
 set(LIBFASTCAL_LIBS ${CMAKE_CURRENT_BINARY_DIR}/src/lib/libfastcal/liblibfastcal.a)
 
+# ------------------------------------------------------------------------------
+# opengv
+# ------------------------------------------------------------------------------
+set(OPENGV_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/external/opengv/include/ )
+set(OPENGV_LIBS ${CMAKE_BINARY_DIR}/src/external/opengv/lib/libopengv.a)
+
 # ==============================================================================
 # Include directories
 # ==============================================================================
@@ -133,6 +139,7 @@ include_directories(
   ${OPENMVG_RIG_SOURCE_DIR}/src/SfMInit_ImageListing/
   ${OPENMVG_INCLUDE_DIRS}
   ${LIBFASTCAL_INCLUDE_DIR}
+  ${OPENGV_INCLUDE_DIR}
 )
 
 # ==============================================================================
@@ -141,6 +148,7 @@ include_directories(
 set(OPENMVG_RIG_LIBRARY_LIST
   ${LIBFASTCAL_LIBS}
   ${OPENMVG_LIBRARIES}
+  ${OPENGV_LIBS}
 )
 
 # ==============================================================================

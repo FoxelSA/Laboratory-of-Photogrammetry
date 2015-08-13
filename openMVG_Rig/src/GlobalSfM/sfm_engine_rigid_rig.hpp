@@ -107,4 +107,3 @@ private:
 
 } // namespace sfm
 } // namespace openMVG
-

@@ -8,6 +8,7 @@
  * Author(s):
  *
  *      Pierre Moulon <p.moulon@foxel.ch>
+ *      Stephane Flotron <s.flotron@foxel.ch>
  *
  * This file is part of the FOXEL project <http://foxel.ch>.
  *
@@ -46,6 +47,13 @@
 #include "openMVG/multiview/essential.hpp"
 
 #include "third_party/progress/progress.hpp"
+
+#include <opengv/types.hpp>
+#include <opengv/relative_pose/methods.hpp>
+#include <opengv/relative_pose/NoncentralRelativeAdapter.hpp>
+#include <opengv/sac/Ransac.hpp>
+#include <opengv/sac_problems/relative_pose/NoncentralRelativePoseSacProblem.hpp>
+#include <../test/time_measurement.hpp>
 
 #ifdef _MSC_VER
 #pragma warning( once : 4267 ) //warning C4267: 'argument' : conversion from 'size_t' to 'const int', possible loss of data
@@ -243,4 +251,3 @@ void ReconstructionEngine_RelativeMotions_RigidRig::Compute_Relative_Rotations(R
 
 } // namespace sfm
 } // namespace openMVG
-
