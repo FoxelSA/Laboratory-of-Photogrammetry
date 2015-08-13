@@ -232,14 +232,141 @@ void ReconstructionEngine_RelativeMotions_RigidRig::Compute_Relative_Rotations(R
     rigWiseMatches[Pair(v1->id_pose, v2->id_pose)].insert(pair);
   }
 
+  // create rig structure using openGV
+  opengv::translations_t  rigOffsets;
+  opengv::rotations_t     rigRotations;
+  double                  minFocal=1.0e10;
+
+  //update size
+  rigOffsets.resize(   _sfm_data.GetIntrinsics().size() );
+  rigRotations.resize( _sfm_data.GetIntrinsics().size() );
+
+  // affect rig structure using opengv
+  for( const auto & intrinsicVal : _sfm_data.GetIntrinsics() )
+  {
+      const cameras::IntrinsicBase * intrinsicPtr = intrinsicVal.second.get();
+      if( intrinsicPtr->getType() == cameras::PINHOLE_RIG_CAMERA )
+      {
+          // retreive information from share pointer
+          const cameras::Rig_Pinhole_Intrinsic * rig_intrinsicPtr = dynamic_cast< const cameras::Rig_Pinhole_Intrinsic * > (intrinsicPtr);
+          const geometry::Pose3 sub_pose = rig_intrinsicPtr->get_subpose();
+          const double focal = rig_intrinsicPtr->focal();
+
+          // update rig stucture
+          const IndexT index = intrinsicVal.first;
+          rigOffsets[index]   = sub_pose.center();
+          rigRotations[index] = sub_pose.rotation().transpose();
+
+          minFocal = std::min( minFocal , focal );
+      }
+  }
+
+  // For each non-central camera pairs, compute the rotation from pairwise point matches:
   for (const auto & relativePoseIterator : rigWiseMatches)
   {
     const Pair relative_pose_pair = relativePoseIterator.first;
     const Pair_Set & match_pairs = relativePoseIterator.second;
 
-    // Compute the relative pose...
-    // - if only one pair of matches: relative pose between two pinhole images
-    // - if many pairs: relative pose between rigid rigs
+    //if the consider pair has the same ID, discard it
+    if ( relative_pose_pair.first != relative_pose_pair.second )
+    {
+      // copy to a vector for use with threading
+      const Pair_Vec pair_vec(match_pairs.begin(), match_pairs.end());
+
+      // Compute the relative pose...
+      // - if only one pair of matches: relative pose between two pinhole images
+      // - if many pairs: relative pose between rigid rigs
+
+      // initialize structure used for matching between rigs
+      opengv::bearingVectors_t bearingVectorsRigOne;
+      opengv::bearingVectors_t bearingVectorsRigTwo;
+
+      std::vector<int>  camCorrespondencesRigOne;
+      std::vector<int>  camCorrespondencesRigTwo;
+
+      opengv::transformation_t  pose;
+      std::vector<size_t> vec_inliers;
+
+      // loop on pairwise correspondances between two non central cameras
+      for (int i = 0; i < pair_vec.size(); ++i)
+      {
+        const Pair current_pair = pair_vec[i];
+        const size_t I = current_pair.first;
+        const size_t J = current_pair.second;
+
+        const View * view_I = _sfm_data.views[I].get();
+        const View * view_J = _sfm_data.views[J].get();
+
+        // Check that valid camera are existing for the pair index
+        if (_sfm_data.GetIntrinsics().find(view_I->id_intrinsic) == _sfm_data.GetIntrinsics().end() ||
+          _sfm_data.GetIntrinsics().find(view_J->id_intrinsic) == _sfm_data.GetIntrinsics().end())
+          continue;
+
+        // initialise intrinsic group of cameras I and J
+        const IndexT intrinsic_index_I = view_I->id_intrinsic;
+        const IndexT intrinsic_index_J = view_J->id_intrinsic;
+
+        const IndMatches & vec_matchesInd = _matches_provider->_pairWise_matches.find(current_pair)->second;
+
+        // initialize bearing vectors and cam correspondances
+        for (size_t k = 0; k < vec_matchesInd.size(); ++k)
+        {
+            // extract features
+            opengv::bearingVector_t  bearing_one;
+            opengv::bearingVector_t  bearing_two;
+
+            // extract normalized keypoints coordinates
+            const Vec2 & pt_one = _normalized_features_provider->feats_per_view[I][vec_matchesInd[k]._i].coords().cast<double>();
+            bearing_one(0) = pt_one.x();
+            bearing_one(1) = pt_one.y();
+            bearing_one(2) = 1.0;
+
+            const Vec2 & pt_two = _normalized_features_provider->feats_per_view[J][vec_matchesInd[k]._j].coords().cast<double>();
+            bearing_two(0) = pt_two.x();
+            bearing_two(1) = pt_two.y();
+            bearing_two(2) = 1.0;
+
+            // normalize bearing vectors
+            bearing_one.normalized();
+            bearing_two.normalized();
+
+            // add bearing vectors to list and update correspondences list
+            bearingVectorsRigOne.push_back( bearing_one );
+            camCorrespondencesRigOne.push_back( intrinsic_index_I );
+
+            // add bearing vectors to list and update correspondences list
+            bearingVectorsRigTwo.push_back( bearing_two );
+            camCorrespondencesRigTwo.push_back( intrinsic_index_J );
+        }
+      }
+
+      //--> Estimate the best possible Rotation/Translation from correspondences
+      double errorMax = std::numeric_limits<double>::max();
+      const double maxExpectedError = 1.0 - cos ( atan ( sqrt(2.0) * 2.5 / minFocal ) );
+      bool isPoseUsable = false ;
+
+      if ( bearingVectorsRigOne.size() > 50 * rigOffsets.size())
+      {
+          isPoseUsable = SfMRobust::robustRigPose(
+                                bearingVectorsRigOne,
+                                bearingVectorsRigTwo,
+                                camCorrespondencesRigOne,
+                                camCorrespondencesRigTwo,
+                                rigOffsets,
+                                rigRotations,
+                                &pose,
+                                &vec_inliers,
+                                &errorMax,
+                                maxExpectedError);
+      }
+
+      if( isPoseUsable )
+      {
+        // set output model
+        geometry::Pose3  relativePose_info( pose.block<3,3>(0,0).transpose(), pose.col(3));
+
+      }
+    }
   }
 }
 
