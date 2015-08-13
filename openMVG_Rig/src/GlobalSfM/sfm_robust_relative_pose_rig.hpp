@@ -127,10 +127,9 @@ struct RigProjError {
     const translation_t t = R2 * tRig + t2 ;
 
     // compute 3d point and reprojection error
-    const Mat3 K = Mat3::Identity();
-
     const Mat34 P1 = HStack(R1, t1);
     const Mat34 P2 = HStack(R, t);
+    
     // Triangulate and return the reprojection error
     Triangulation triangulationObj;
     triangulationObj.add(P1, x1);

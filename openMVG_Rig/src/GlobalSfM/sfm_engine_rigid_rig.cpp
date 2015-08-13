@@ -37,6 +37,7 @@
  */
 
 #include "./sfm_engine_rigid_rig.hpp"
+#include "./sfm_robust_relative_pose_rig.hpp"
 #include "third_party/htmlDoc/htmlDoc.hpp"
 
 #include "openMVG/multiview/triangulation.hpp"
@@ -47,12 +48,6 @@
 #include "openMVG/multiview/essential.hpp"
 
 #include "third_party/progress/progress.hpp"
-
-#include <opengv/types.hpp>
-#include <opengv/relative_pose/methods.hpp>
-#include <opengv/relative_pose/NoncentralRelativeAdapter.hpp>
-#include <opengv/sac/Ransac.hpp>
-#include <opengv/sac_problems/relative_pose/NoncentralRelativePoseSacProblem.hpp>
 
 #ifdef _MSC_VER
 #pragma warning( once : 4267 ) //warning C4267: 'argument' : conversion from 'size_t' to 'const int', possible loss of data
