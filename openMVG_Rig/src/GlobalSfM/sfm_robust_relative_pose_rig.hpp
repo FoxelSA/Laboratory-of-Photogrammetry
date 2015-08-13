@@ -47,9 +47,6 @@
 #include "openMVG/multiview/triangulation_nview.hpp"
 #include "openMVG/cameras/PinholeCamera.hpp"
 
-#include "openMVG/robust_estimation/robust_estimator_ACRansac.hpp"
-#include "openMVG/robust_estimation/robust_estimator_ACRansacKernelAdaptator.hpp"
-
 #include "opengv/types.hpp"
 #include "opengv/relative_pose/methods.hpp"
 #include "opengv/triangulation/methods.hpp"
@@ -129,7 +126,7 @@ struct RigProjError {
     // compute 3d point and reprojection error
     const Mat34 P1 = HStack(R1, t1);
     const Mat34 P2 = HStack(R, t);
-    
+
     // Triangulate and return the reprojection error
     Triangulation triangulationObj;
     triangulationObj.add(P1, x1);
@@ -205,7 +202,6 @@ namespace openMVG{
 namespace SfMRobust{
 
   using namespace openMVG::matching;
-  using namespace openMVG::robust;
   using namespace opengv;
   using namespace std;
 
