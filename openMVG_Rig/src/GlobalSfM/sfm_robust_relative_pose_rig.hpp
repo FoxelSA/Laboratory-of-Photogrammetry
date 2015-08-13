@@ -221,7 +221,6 @@ namespace SfMRobust{
  * @param[in] rigRotations rotation matrices of subcameras
  * @param[out] transformation_t relative pose of second rig (R^T and C)
  * @param[out] pvec_inliers inliers indices (can be empty)
- * @param[in] size_ima1 width, height of image
  * @param[out] errorMax upper bound of the reprojection error of the found solution
  * @param[in] precision upper bound of the desired solution
  */
