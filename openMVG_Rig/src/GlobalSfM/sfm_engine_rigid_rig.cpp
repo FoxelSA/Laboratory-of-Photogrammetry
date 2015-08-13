@@ -53,7 +53,6 @@
 #include <opengv/relative_pose/NoncentralRelativeAdapter.hpp>
 #include <opengv/sac/Ransac.hpp>
 #include <opengv/sac_problems/relative_pose/NoncentralRelativePoseSacProblem.hpp>
-#include <../test/time_measurement.hpp>
 
 #ifdef _MSC_VER
 #pragma warning( once : 4267 ) //warning C4267: 'argument' : conversion from 'size_t' to 'const int', possible loss of data

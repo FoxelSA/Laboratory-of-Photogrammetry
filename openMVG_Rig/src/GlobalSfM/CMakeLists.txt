@@ -42,10 +42,12 @@
 add_executable(openMVGRig_GlobalSfM
   sfm_engine_rigid_rig.hpp
   sfm_engine_rigid_rig.cpp
-  main_GlobalSfM.cpp)
+  sfm_robust_relative_pose_rig.hpp
+  sfm_robust_relative_pose_rig.cpp
+  main_GlobalSfM.cpp )
 
 add_dependencies(openMVGRig_GlobalSfM opengv )
-target_link_libraries(openMVGRig_GlobalSfM ${OPENMVG_LIBRARIES})
+target_link_libraries(openMVGRig_GlobalSfM opengv ${OPENMVG_LIBRARIES})
 
 set(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/software)
 
