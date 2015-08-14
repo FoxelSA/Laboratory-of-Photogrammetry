@@ -238,27 +238,27 @@ void ReconstructionEngine_RelativeMotions_RigidRig::Compute_Relative_Rotations(R
   double                  minFocal=1.0e10;
 
   //update size
-  rigOffsets.resize(   _sfm_data.GetIntrinsics().size() );
+  rigOffsets.resize  ( _sfm_data.GetIntrinsics().size() );
   rigRotations.resize( _sfm_data.GetIntrinsics().size() );
 
   // affect rig structure using opengv
-  for( const auto & intrinsicVal : _sfm_data.GetIntrinsics() )
+  for (const auto & intrinsicVal : _sfm_data.GetIntrinsics())
   {
-      const cameras::IntrinsicBase * intrinsicPtr = intrinsicVal.second.get();
-      if( intrinsicPtr->getType() == cameras::PINHOLE_RIG_CAMERA )
-      {
-          // retreive information from share pointer
-          const cameras::Rig_Pinhole_Intrinsic * rig_intrinsicPtr = dynamic_cast< const cameras::Rig_Pinhole_Intrinsic * > (intrinsicPtr);
-          const geometry::Pose3 sub_pose = rig_intrinsicPtr->get_subpose();
-          const double focal = rig_intrinsicPtr->focal();
+    const cameras::IntrinsicBase * intrinsicPtr = intrinsicVal.second.get();
+    if ( intrinsicPtr->getType() == cameras::PINHOLE_RIG_CAMERA )
+    {
+      // retrieve information from shared pointer
+      const cameras::Rig_Pinhole_Intrinsic * rig_intrinsicPtr = dynamic_cast< const cameras::Rig_Pinhole_Intrinsic * > (intrinsicPtr);
+      const geometry::Pose3 sub_pose = rig_intrinsicPtr->get_subpose();
+      const double focal = rig_intrinsicPtr->focal();
 
-          // update rig stucture
-          const IndexT index = intrinsicVal.first;
-          rigOffsets[index]   = sub_pose.center();
-          rigRotations[index] = sub_pose.rotation().transpose();
+      // update rig stucture
+      const IndexT index = intrinsicVal.first;
+      rigOffsets[index]   = sub_pose.center();
+      rigRotations[index] = sub_pose.rotation().transpose();
 
-          minFocal = std::min( minFocal , focal );
-      }
+      minFocal = std::min( minFocal , focal );
+    }
   }
 
   // For each non-central camera pairs, compute the rotation from pairwise point matches:
@@ -316,15 +316,8 @@ void ReconstructionEngine_RelativeMotions_RigidRig::Compute_Relative_Rotations(R
             opengv::bearingVector_t  bearing_two;
 
             // extract normalized keypoints coordinates
-            const Vec2 & pt_one = _normalized_features_provider->feats_per_view[I][vec_matchesInd[k]._i].coords().cast<double>();
-            bearing_one(0) = pt_one.x();
-            bearing_one(1) = pt_one.y();
-            bearing_one(2) = 1.0;
-
-            const Vec2 & pt_two = _normalized_features_provider->feats_per_view[J][vec_matchesInd[k]._j].coords().cast<double>();
-            bearing_two(0) = pt_two.x();
-            bearing_two(1) = pt_two.y();
-            bearing_two(2) = 1.0;
+            bearing_one << _normalized_features_provider->feats_per_view[I][vec_matchesInd[k]._i].coords().cast<double>(), 1.0;
+            bearing_two << _normalized_features_provider->feats_per_view[J][vec_matchesInd[k]._j].coords().cast<double>(), 1.0
 
             // normalize bearing vectors
             bearing_one.normalized();
