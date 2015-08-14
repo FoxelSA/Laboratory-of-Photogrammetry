@@ -267,6 +267,9 @@ void ReconstructionEngine_RelativeMotions_RigidRig::Compute_Relative_Rotations(R
     const Pair relative_pose_pair = relativePoseIterator.first;
     const Pair_Set & match_pairs = relativePoseIterator.second;
 
+    const IndexT   indexRig1 = relative_pose_pair.first;
+    const IndexT   indexRig2 = relative_pose_pair.second;
+
     //if the consider pair has the same ID, discard it
     if ( relative_pose_pair.first != relative_pose_pair.second )
     {
@@ -316,50 +319,78 @@ void ReconstructionEngine_RelativeMotions_RigidRig::Compute_Relative_Rotations(R
       STLMAPTracks map_tracks; // reconstructed track (visibility per 3D point)
       tracksBuilder.ExportToSTL(map_tracks);
 
-      // loop on pairwise correspondances between two non central cameras (will soon be on tracks)
-      for (const auto & pairIterator : match_pairs )
+      // extract associated subcamera id for each tracks
+      std::map < size_t, size_t >  map_bearingIdToTrackId;
+      size_t cpt = 0;
+      for (STLMAPTracks::const_iterator iterTracks = map_tracks.begin();
+        iterTracks != map_tracks.end(); ++iterTracks, ++cpt)
       {
-        const size_t I = pairIterator.first;
-        const size_t J = pairIterator.second;
+        const submapTrack & subTrack = iterTracks->second;
+        std::vector<std::pair<size_t, size_t> >  imgAndFeat_rigI;
+        std::vector<std::pair<size_t, size_t> >  imgAndFeat_rigJ;
 
-        const View * view_I = _sfm_data.views[I].get();
-        const View * view_J = _sfm_data.views[J].get();
-
-        // Check that valid camera are existing for the pair index
-        if (_sfm_data.GetIntrinsics().find(view_I->id_intrinsic) == _sfm_data.GetIntrinsics().end() ||
-          _sfm_data.GetIntrinsics().find(view_J->id_intrinsic) == _sfm_data.GetIntrinsics().end())
-          continue;
-
-        // initialise intrinsic group of cameras I and J
-        const IndexT intrinsic_index_I = view_I->id_intrinsic;
-        const IndexT intrinsic_index_J = view_J->id_intrinsic;
-
-        const IndMatches & vec_matchesInd = _matches_provider->_pairWise_matches.find(pairIterator)->second;
-
-        // initialize bearing vectors and cam correspondances
-        for (size_t k = 0; k < vec_matchesInd.size(); ++k)
+        for (submapTrack::const_iterator iterSubTrack = subTrack.begin();
+                iterSubTrack != subTrack.end(); ++iterSubTrack)
         {
-            // extract features
-            opengv::bearingVector_t  bearing_one;
-            opengv::bearingVector_t  bearing_two;
+          const size_t imaIndex  = iterSubTrack->first;
+          const size_t featIndex = iterSubTrack->second;
 
-            // extract normalized keypoints coordinates
-            bearing_one << _normalized_features_provider->feats_per_view[I][vec_matchesInd[k]._i].coords().cast<double>(), 1.0;
-            bearing_two << _normalized_features_provider->feats_per_view[J][vec_matchesInd[k]._j].coords().cast<double>(), 1.0;
+          const View * view = _sfm_data.views[imaIndex].get();
+          const size_t rigidId = view->id_pose;
 
-            // normalize bearing vectors
-            bearing_one.normalized();
-            bearing_two.normalized();
+          if( rigidId == indexRig1 )
+              imgAndFeat_rigI.push_back(std::make_pair(imaIndex,featIndex));
 
-            // add bearing vectors to list and update correspondences list
-            bearingVectorsRigOne.push_back( bearing_one );
-            camCorrespondencesRigOne.push_back( intrinsic_index_I );
-
-            // add bearing vectors to list and update correspondences list
-            bearingVectorsRigTwo.push_back( bearing_two );
-            camCorrespondencesRigTwo.push_back( intrinsic_index_J );
+          if( rigidId == indexRig2 )
+              imgAndFeat_rigJ.push_back(std::make_pair(imaIndex,featIndex));
         }
-      }
+
+        // loop on matches between rigs
+        for( size_t  indI = 0; indI < imgAndFeat_rigI.size(); ++indI )
+        {
+            for( size_t indJ = 0; indJ < imgAndFeat_rigJ.size(); ++indJ )
+            {
+              // extract image index and feat index
+              const size_t  I      = imgAndFeat_rigI[indI].first;
+              const size_t  feat_I = imgAndFeat_rigI[indI].second;
+
+              const size_t  J      = imgAndFeat_rigJ[indJ].first;
+              const size_t  feat_J = imgAndFeat_rigJ[indJ].second;
+
+              // initialize view structure
+              const View * view_I = _sfm_data.views[I].get();
+              const View * view_J = _sfm_data.views[J].get();
+
+              // initialise intrinsic group of cameras I and J
+              const IndexT intrinsic_index_I = view_I->id_intrinsic;
+              const IndexT intrinsic_index_J = view_J->id_intrinsic;
+
+              // extract features
+              opengv::bearingVector_t  bearing_one;
+              opengv::bearingVector_t  bearing_two;
+
+              // extract normalized keypoints coordinates
+              bearing_one << _normalized_features_provider->feats_per_view[I][feat_I].coords().cast<double>(), 1.0;
+              bearing_two << _normalized_features_provider->feats_per_view[J][feat_J].coords().cast<double>(), 1.0;
+
+              // normalize bearing vectors
+              bearing_one.normalized();
+              bearing_two.normalized();
+
+              // add bearing vectors to list and update correspondences list
+              bearingVectorsRigOne.push_back( bearing_one );
+              camCorrespondencesRigOne.push_back( intrinsic_index_I );
+
+              // add bearing vectors to list and update correspondences list
+              bearingVectorsRigTwo.push_back( bearing_two );
+              camCorrespondencesRigTwo.push_back( intrinsic_index_J );
+
+              // update map
+              map_bearingIdToTrackId[bearingVectorsRigTwo.size()-1] = cpt;
+            }
+        }
+
+      }// end loop on tracks
 
       //--> Estimate the best possible Rotation/Translation from correspondences
       double errorMax = std::numeric_limits<double>::max();
@@ -385,8 +416,25 @@ void ReconstructionEngine_RelativeMotions_RigidRig::Compute_Relative_Rotations(R
       {
         // set output model
         geometry::Pose3  relativePose( pose.block<3,3>(0,0).transpose(), pose.col(3));
-        const IndexT   indexRig1 = relative_pose_pair.first;
-        const IndexT   indexRig2 = relative_pose_pair.second;
+
+        // keep only tracks related to inliers
+        std::set<size_t>   inliers_set;
+        for(size_t l=0; l < vec_inliers.size(); ++l)
+        {
+            const size_t  trackId = map_bearingIdToTrackId.at(vec_inliers[l]);
+            inliers_set.insert( trackId );
+        }
+
+        openMVG::tracks::STLMAPTracks map_tracksInliers;
+        size_t  counter = 0;
+        for( size_t idx = 0 ; idx < map_tracks.size(); ++idx )
+        {
+            if(  inliers_set.find( idx ) != inliers_set.end() )
+            {
+                map_tracksInliers[counter] = map_tracks[idx];
+                ++counter;
+            }
+        }
 
         // compute initial triangulation
         SfM_Data   tiny_scene;
@@ -418,8 +466,8 @@ void ReconstructionEngine_RelativeMotions_RigidRig::Compute_Relative_Rotations(R
         // Fill sfm_data with the computed tracks (no 3D yet)
         Landmarks & structure = tiny_scene.structure;
         IndexT idx(0);
-        for (STLMAPTracks::const_iterator itTracks = map_tracks.begin();
-          itTracks != map_tracks.end();
+        for (STLMAPTracks::const_iterator itTracks = map_tracksInliers.begin();
+          itTracks != map_tracksInliers.end();
           ++itTracks, ++idx)
         {
           const submapTrack & track = itTracks->second;
