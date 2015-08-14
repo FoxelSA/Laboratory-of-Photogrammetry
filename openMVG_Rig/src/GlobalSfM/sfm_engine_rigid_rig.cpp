@@ -317,7 +317,7 @@ void ReconstructionEngine_RelativeMotions_RigidRig::Compute_Relative_Rotations(R
 
             // extract normalized keypoints coordinates
             bearing_one << _normalized_features_provider->feats_per_view[I][vec_matchesInd[k]._i].coords().cast<double>(), 1.0;
-            bearing_two << _normalized_features_provider->feats_per_view[J][vec_matchesInd[k]._j].coords().cast<double>(), 1.0
+            bearing_two << _normalized_features_provider->feats_per_view[J][vec_matchesInd[k]._j].coords().cast<double>(), 1.0;
 
             // normalize bearing vectors
             bearing_one.normalized();

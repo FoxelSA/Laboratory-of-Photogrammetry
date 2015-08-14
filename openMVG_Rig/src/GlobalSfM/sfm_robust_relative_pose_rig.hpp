@@ -150,23 +150,19 @@ struct RigAngularError {
                       relative_pose::NoncentralRelativeAdapter & _adapter)
   {
     // extract rotation and translation from model
-    translation_t translation = model.col(3);
-    rotation_t rotation = model.block<3,3>(0,0);
-
-    //  initialize variable
-    Vec4 p_hom;
-    p_hom[3] = 1.0;
+    const translation_t translation = model.col(3);
+    const rotation_t rotation = model.block<3,3>(0,0);
 
     // compute pose
-    translation_t cam1Offset = _adapter.getCamOffset1(index);
-    rotation_t cam1Rotation = _adapter.getCamRotation1(index);
-    translation_t cam2Offset = _adapter.getCamOffset2(index);
-    rotation_t cam2Rotation = _adapter.getCamRotation2(index);
+    const translation_t cam1Offset = _adapter.getCamOffset1(index);
+    const rotation_t cam1Rotation = _adapter.getCamRotation1(index);
+    const translation_t cam2Offset = _adapter.getCamOffset2(index);
+    const rotation_t cam2Rotation = _adapter.getCamRotation2(index);
 
-    translation_t directTranslation =
+    const translation_t directTranslation =
         cam1Rotation.transpose() *
         ((translation - cam1Offset) + rotation * cam2Offset);
-    rotation_t directRotation =
+    const rotation_t directRotation =
         cam1Rotation.transpose() * rotation * cam2Rotation;
 
     _adapter.sett12(directTranslation);
@@ -177,17 +173,18 @@ struct RigAngularError {
     inverseSolution.col(3) =
         -inverseSolution.block<3,3>(0,0)*directTranslation;
 
-    p_hom.block<3,1>(0,0) =
-        opengv::triangulation::triangulate2(_adapter,index);
-    bearingVector_t reprojection1 = p_hom.block<3,1>(0,0).normalized();
-    bearingVector_t reprojection2 = (inverseSolution * p_hom).normalized();
-    bearingVector_t f1 = _adapter.getBearingVector1(index).normalized();
-    bearingVector_t f2 = _adapter.getBearingVector2(index).normalized();
+    Vec4 p_hom;
+    p_hom << opengv::triangulation::triangulate2(_adapter,index), 1.0;
+
+    const bearingVector_t reprojection1 = p_hom.block<3,1>(0,0).normalized();
+    const bearingVector_t reprojection2 = (inverseSolution * p_hom).normalized();
+    const bearingVector_t f1 = _adapter.getBearingVector1(index).normalized();
+    const bearingVector_t f2 = _adapter.getBearingVector2(index).normalized();
 
     //bearing-vector based outlier criterium (select threshold accordingly):
     //1-(f1'*f2) = 1-cos(alpha) \in [0:2]
-    double reprojError1 = 1.0 - f1.transpose() * reprojection1 ;
-    double reprojError2 = 1.0 - f2.transpose() * reprojection2 ;
+    const double reprojError1 = 1.0 - f1.transpose() * reprojection1 ;
+    const double reprojError2 = 1.0 - f2.transpose() * reprojection2 ;
     return std::max(reprojError1,reprojError2);
   }
 };

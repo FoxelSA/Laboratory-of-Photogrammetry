@@ -120,7 +120,7 @@ namespace openMVG {
       size_t NumSamples() const { return b1_.size(); }
       void Unnormalize(Model * model) const {}
       double logalpha0() const {return logalpha0_;}
-      double multError() const {return 0.5;} // point to line error
+      double multError() const {return 0.5;} // angle vs. angle error
       Mat3 normalizer1() const {return Mat3::Identity();}
       Mat3 normalizer2() const {return Mat3::Identity();}
       double unormalizeError(double val) const { return val; }
@@ -162,24 +162,19 @@ void SixPointSolver::Solve(
 {
 
   // convert size_t to int for opengv call
-  std::vector<int> idx;
+  std::vector<int> idx(indices.begin(), indices.end());
 
-  for(size_t i=0; i < indices.size(); ++i)
-  {
-     idx.push_back( (int) indices[i]);
-  }
+  // create non central relative sac problem
+  sac_problems::relative_pose::NoncentralRelativePoseSacProblem
+            problem(adapter,
+                    sac_problems::relative_pose::NoncentralRelativePoseSacProblem::SIXPT,
+                    false);
 
-   // create non central relative sac problem
-   sac_problems::relative_pose::NoncentralRelativePoseSacProblem
-              problem(adapter,
-                      sac_problems::relative_pose::NoncentralRelativePoseSacProblem::SIXPT,
-                      false);
+  // solve pose problem
+  transformation_t relativePose;
+  problem.computeModelCoefficients(idx, relativePose);
 
-   // solve pose problem
-   transformation_t relativePose;
-   problem.computeModelCoefficients(idx, relativePose);
-
-   models->push_back(relativePose);
+  models->push_back(relativePose);
 }
 
 /**
@@ -200,17 +195,12 @@ void GePointSolver::Solve(
 {
 
   // convert size_t to int for opengv call
-  std::vector<int> idx;
-
-  for(size_t i=0; i < indices.size(); ++i)
-  {
-    idx.push_back( (int) indices[i]);
-  }
+  std::vector<int> idx(indices.begin(), indices.end());
 
   // create non central relative sac problem
   sac_problems::relative_pose::NoncentralRelativePoseSacProblem
             problem(adapter,
-                    sac_problems::relative_pose::NoncentralRelativePoseSacProblem::GEM,
+                    sac_problems::relative_pose::NoncentralRelativePoseSacProblem::GE,
                     false);
 
   // solve pose problem
