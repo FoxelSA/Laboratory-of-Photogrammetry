@@ -356,10 +356,123 @@ void ReconstructionEngine_RelativeMotions_RigidRig::Compute_Relative_Rotations(R
       if( isPoseUsable )
       {
         // set output model
-        geometry::Pose3  relativePose_info( pose.block<3,3>(0,0).transpose(), pose.col(3));
+        geometry::Pose3  relativePose( pose.block<3,3>(0,0).transpose(), pose.col(3));
+        const IndexT   indexRig1 = relative_pose_pair.first;
+        const IndexT   indexRig2 = relative_pose_pair.second;
 
+        // compute initial triangulation
+        SfM_Data   tiny_scene;
+
+        // intialize poses (which are now shared by a group of images)
+        tiny_scene.poses[indexRig1] = Pose3(Mat3::Identity(), Vec3::Zero());
+        tiny_scene.poses[indexRig2] = relativePose;
+
+        // insert all views in the scene
+        IndexT  cpt = 0;
+        for (const auto & pairIterator : match_pairs )
+        {
+          // initialize camera indexes
+          const IndexT   I = pairIterator.first;
+          const IndexT   J = pairIterator.second;
+
+          // initialize views
+          const View * view_I = _sfm_data.views[I].get();
+          const View * view_J = _sfm_data.views[J].get();
+
+          // add views
+          tiny_scene.views.insert(*_sfm_data.GetViews().find(pairIterator.first));
+          tiny_scene.views.insert(*_sfm_data.GetViews().find(pairIterator.second));
+
+          // add intrinsics
+          tiny_scene.intrinsics.insert(*_sfm_data.GetIntrinsics().find(view_I->id_intrinsic));
+          tiny_scene.intrinsics.insert(*_sfm_data.GetIntrinsics().find(view_J->id_intrinsic));
+
+          // Init poses
+          const Pose3 & Pose_I = tiny_scene.GetPoseOrDie( view_I );
+          const Pose3 & Pose_J = tiny_scene.GetPoseOrDie( view_J );
+
+          // Init structure
+          const IntrinsicBase * cam_I = _sfm_data.GetIntrinsics().at(view_I->id_intrinsic).get();
+          const IntrinsicBase * cam_J = _sfm_data.GetIntrinsics().at(view_J->id_intrinsic).get();
+          const Mat34 P1 = cam_I->get_projective_equivalent(Pose_I);
+          const Mat34 P2 = cam_J->get_projective_equivalent(Pose_J);
+
+          // initialize matches index list
+          const IndMatches & vec_matchesInd = _matches_provider->_pairWise_matches.find(pairIterator)->second;
+
+          Landmarks & landmarks = tiny_scene.structure;
+          for (size_t k = 0; k < vec_matchesInd.size(); ++k) {
+            const Vec2 x1_ = _features_provider->feats_per_view[I][vec_matchesInd[k]._i].coords().cast<double>();
+            const Vec2 x2_ = _features_provider->feats_per_view[J][vec_matchesInd[k]._j].coords().cast<double>();
+            Vec3 X;
+            TriangulateDLT(P1, x1_, P2, x2_, &X);
+            Observations obs;
+            obs[view_I->id_view] = Observation(x1_, vec_matchesInd[k]._i);
+            obs[view_J->id_view] = Observation(x2_, vec_matchesInd[k]._j);
+            landmarks[cpt].obs = obs;
+            landmarks[cpt].X = X;
+            ++cpt;
+          }
+        }
+
+        // - refine only Structure and Rotations & translations (keep intrinsic constant)
+        Bundle_Adjustment_Ceres::BA_options options(false, false);
+        options._linear_solver_type = ceres::DENSE_SCHUR;
+        Bundle_Adjustment_Ceres bundle_adjustment_obj(options);
+        if (bundle_adjustment_obj.Adjust(tiny_scene, true, true, false))
+        {
+          // --> to debug: save relative pair geometry on disk
+          //std::ostringstream os;
+          //os << relative_pose_pair.first << "_" << relative_pose_pair.second << ".ply";
+          //Save(tiny_scene, os.str(), ESfM_Data(STRUCTURE | EXTRINSICS));
+          //
+          const Mat3 R1 = tiny_scene.poses[indexRig1].rotation();
+          const Mat3 R2 = tiny_scene.poses[indexRig2].rotation();
+          const Vec3 t1 = tiny_scene.poses[indexRig1].translation();
+          const Vec3 t2 = tiny_scene.poses[indexRig2].translation();
+          // Compute relative motion and save it
+          Mat3 Rrel;
+          Vec3 trel;
+          RelativeCameraMotion(R1, t1, R2, t2, &Rrel, &trel);
+          // Update found relative pose
+          relativePose = Pose3(Rrel, -Rrel.transpose() * trel);
+        }
+
+        {
+          vec_relatives[relative_pose_pair] = std::make_pair(
+            relativePose.rotation(),
+            relativePose.translation());
+
+          // TODO: Extend later to a pose graph and not a view graph
+          // convert relative view index to relative pose indexes
+          //const Pair relativePoseIndexes(view_I->id_pose, view_J->id_pose);
+          //vec_relatives[relativePoseIndexes] = std::make_pair(
+          //  relativePose.relativePose.rotation(),
+          //  relativePose.relativePose.translation());
+        }
       }
     }
+  }
+  // Log input graph to the HTML report
+  if (!_sLoggingFile.empty() && !_sOutDirectory.empty())
+  {
+    std::set<IndexT> set_ViewIds;
+      std::transform(_sfm_data.GetViews().begin(), _sfm_data.GetViews().end(),
+        std::inserter(set_ViewIds, set_ViewIds.begin()), stl::RetrieveKey());
+    graph::indexedGraph putativeGraph(set_ViewIds, getPairs(_matches_provider->_pairWise_matches));
+    graph::exportToGraphvizData(
+      stlplus::create_filespec(_sOutDirectory, "input_largest_cc_relative_motions_graph"),
+      putativeGraph.g);
+
+    using namespace htmlDocument;
+    std::ostringstream os;
+
+    os << "<br>" << "input_largest_cc_relative_motions_graph" << "<br>"
+       << "<img src=\""
+       << stlplus::create_filespec(_sOutDirectory, "input_largest_cc_relative_motions_graph", "svg")
+       << "\" height=\"600\">\n";
+
+    _htmlDocStream->pushInfo(os.str());
   }
 }
 
