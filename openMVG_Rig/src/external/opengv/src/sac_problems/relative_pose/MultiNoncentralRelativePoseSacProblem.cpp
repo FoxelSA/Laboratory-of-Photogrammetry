@@ -56,7 +56,7 @@ opengv::sac_problems::relative_pose::MultiNoncentralRelativePoseSacProblem::
             _adapter,_adapter.convertMultiIndices(indices));
         break;
       }
-      case GEM:
+      case GE:
       {
         geOutput_t output2;
         opengv::relative_pose::ge(
@@ -364,7 +364,7 @@ opengv::sac_problems::
         sampleSize = 17;
         break;
       }
-      case GEM:
+      case GE:
       {
         sampleSize = 8;
         break;

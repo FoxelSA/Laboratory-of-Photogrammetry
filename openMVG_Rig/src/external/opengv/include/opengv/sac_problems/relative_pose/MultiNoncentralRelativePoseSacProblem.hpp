@@ -83,7 +83,7 @@ public:
   typedef enum Algorithm
   {
     SIXPT = 0,      // [16]
-    GEM = 1,         // []
+    GE = 1,         // []
     SEVENTEENPT = 2 // [12]
   } algorithm_t;
 
