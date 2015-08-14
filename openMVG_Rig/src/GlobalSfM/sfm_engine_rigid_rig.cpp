@@ -287,12 +287,40 @@ void ReconstructionEngine_RelativeMotions_RigidRig::Compute_Relative_Rotations(R
       opengv::transformation_t  pose;
       std::vector<size_t> vec_inliers;
 
-      // loop on pairwise correspondances between two non central cameras
-      for (int i = 0; i < pair_vec.size(); ++i)
+      // initialise matches between the two rigs
+      matching::PairWiseMatches  matches_rigpair;
+
+      // create pairwise matches in order to compute tracks
+      for (const auto & pairIterator : match_pairs )
       {
-        const Pair current_pair = pair_vec[i];
-        const size_t I = current_pair.first;
-        const size_t J = current_pair.second;
+        const size_t I = pairIterator.first;
+        const size_t J = pairIterator.second;
+
+        const View * view_I = _sfm_data.views[I].get();
+        const View * view_J = _sfm_data.views[J].get();
+
+        // Check that valid camera are existing for the pair index
+        if (_sfm_data.GetIntrinsics().find(view_I->id_intrinsic) == _sfm_data.GetIntrinsics().end() ||
+          _sfm_data.GetIntrinsics().find(view_J->id_intrinsic) == _sfm_data.GetIntrinsics().end())
+          continue;
+
+        // export pairwise matches
+        matches_rigpair[pairIterator] = _matches_provider->_pairWise_matches.at( pairIterator );
+      }
+
+      // initialize tracks
+      using namespace openMVG::tracks;
+      TracksBuilder tracksBuilder;
+      tracksBuilder.Build( matches_rigpair );
+      tracksBuilder.Filter( 2 );
+      STLMAPTracks map_tracks; // reconstructed track (visibility per 3D point)
+      tracksBuilder.ExportToSTL(map_tracks);
+
+      // loop on pairwise correspondances between two non central cameras (will soon be on tracks)
+      for (const auto & pairIterator : match_pairs )
+      {
+        const size_t I = pairIterator.first;
+        const size_t J = pairIterator.second;
 
         const View * view_I = _sfm_data.views[I].get();
         const View * view_J = _sfm_data.views[J].get();
@@ -306,7 +334,7 @@ void ReconstructionEngine_RelativeMotions_RigidRig::Compute_Relative_Rotations(R
         const IndexT intrinsic_index_I = view_I->id_intrinsic;
         const IndexT intrinsic_index_J = view_J->id_intrinsic;
 
-        const IndMatches & vec_matchesInd = _matches_provider->_pairWise_matches.find(current_pair)->second;
+        const IndMatches & vec_matchesInd = _matches_provider->_pairWise_matches.find(pairIterator)->second;
 
         // initialize bearing vectors and cam correspondances
         for (size_t k = 0; k < vec_matchesInd.size(); ++k)
@@ -338,7 +366,7 @@ void ReconstructionEngine_RelativeMotions_RigidRig::Compute_Relative_Rotations(R
       const double maxExpectedError = 1.0 - cos ( atan ( sqrt(2.0) * 2.5 / minFocal ) );
       bool isPoseUsable = false ;
 
-      if ( bearingVectorsRigOne.size() > 50 * rigOffsets.size())
+      if ( map_tracks.size() > 50 * rigOffsets.size())
       {
           isPoseUsable = SfMRobust::robustRigPose(
                                 bearingVectorsRigOne,
@@ -368,7 +396,6 @@ void ReconstructionEngine_RelativeMotions_RigidRig::Compute_Relative_Rotations(R
         tiny_scene.poses[indexRig2] = relativePose;
 
         // insert all views in the scene
-        IndexT  cpt = 0;
         for (const auto & pairIterator : match_pairs )
         {
           // initialize camera indexes
@@ -386,33 +413,31 @@ void ReconstructionEngine_RelativeMotions_RigidRig::Compute_Relative_Rotations(R
           // add intrinsics
           tiny_scene.intrinsics.insert(*_sfm_data.GetIntrinsics().find(view_I->id_intrinsic));
           tiny_scene.intrinsics.insert(*_sfm_data.GetIntrinsics().find(view_J->id_intrinsic));
+        }
 
-          // Init poses
-          const Pose3 & Pose_I = tiny_scene.GetPoseOrDie( view_I );
-          const Pose3 & Pose_J = tiny_scene.GetPoseOrDie( view_J );
-
-          // Init structure
-          const IntrinsicBase * cam_I = _sfm_data.GetIntrinsics().at(view_I->id_intrinsic).get();
-          const IntrinsicBase * cam_J = _sfm_data.GetIntrinsics().at(view_J->id_intrinsic).get();
-          const Mat34 P1 = cam_I->get_projective_equivalent(Pose_I);
-          const Mat34 P2 = cam_J->get_projective_equivalent(Pose_J);
-
-          // initialize matches index list
-          const IndMatches & vec_matchesInd = _matches_provider->_pairWise_matches.find(pairIterator)->second;
-
-          Landmarks & landmarks = tiny_scene.structure;
-          for (size_t k = 0; k < vec_matchesInd.size(); ++k) {
-            const Vec2 x1_ = _features_provider->feats_per_view[I][vec_matchesInd[k]._i].coords().cast<double>();
-            const Vec2 x2_ = _features_provider->feats_per_view[J][vec_matchesInd[k]._j].coords().cast<double>();
-            Vec3 X;
-            TriangulateDLT(P1, x1_, P2, x2_, &X);
-            Observations obs;
-            obs[view_I->id_view] = Observation(x1_, vec_matchesInd[k]._i);
-            obs[view_J->id_view] = Observation(x2_, vec_matchesInd[k]._j);
-            landmarks[cpt].obs = obs;
-            landmarks[cpt].X = X;
-            ++cpt;
+        // Fill sfm_data with the computed tracks (no 3D yet)
+        Landmarks & structure = tiny_scene.structure;
+        IndexT idx(0);
+        for (STLMAPTracks::const_iterator itTracks = map_tracks.begin();
+          itTracks != map_tracks.end();
+          ++itTracks, ++idx)
+        {
+          const submapTrack & track = itTracks->second;
+          structure[idx] = Landmark();
+          Observations & obs = structure.at(idx).obs;
+          for (submapTrack::const_iterator it = track.begin(); it != track.end(); ++it)
+          {
+            const size_t imaIndex = it->first;
+            const size_t featIndex = it->second;
+            const PointFeature & pt = _features_provider->feats_per_view.at(imaIndex)[featIndex];
+            obs[imaIndex] = Observation(pt.coords().cast<double>(), featIndex);
           }
+        }
+
+        // Compute 3D position of the landmark of the structure by triangulation of the observations
+        {
+          SfM_Data_Structure_Computation_Blind structure_estimator(false);
+          structure_estimator.triangulate(tiny_scene);
         }
 
         // - refine only Structure and Rotations & translations (keep intrinsic constant)
