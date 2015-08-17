@@ -264,7 +264,7 @@ bool robustRigPose(
 
   // Robustly estimation of the Essential matrix and it's precision
   std::pair<double,double> acRansacOut = ACRANSAC(kernel, *pvec_inliers,
-    ACRANSAC_ITER, relativePose, precision, false ); // need to modify this function !
+    ACRANSAC_ITER, relativePose, precision, false );
   *errorMax = acRansacOut.first;
 
   return ( pvec_inliers->size() > 2.5 * SolverType::MINIMUM_SAMPLES * rigOffsets.size() );

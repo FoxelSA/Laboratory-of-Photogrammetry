@@ -71,10 +71,17 @@ public:
 
 protected:
   /// Compute from relative rotations the global rotations of the camera poses
-  bool Compute_Global_Rotations();
+  bool Compute_Global_Rotations
+  (
+    const RelativeInfo_Map & vec_relatives,
+    Hash_Map<IndexT, Mat3> & map_globalR
+  );
 
   /// Compute/refine relative translations and compute global translations
-  bool Compute_Global_Translations();
+  bool Compute_Global_Translations
+  (
+    const Hash_Map<IndexT, Mat3> & global_rotations
+  );
 
   /// Compute the initial structure of the scene
   bool Compute_Initial_Structure();
