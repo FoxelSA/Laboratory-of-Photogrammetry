@@ -11,13 +11,7 @@ openMVG_rig documentation
    :maxdepth: 1
    :hidden:
 
-   openMVG/openMVG.rst
-   openMVG_Samples/openMVG_Samples.rst
-   software/softwares.rst
-   nonFree/patented.rst
-   dependencies/external_libs.rst
-   third_party/third_party.rst
-   FAQ/FAQ.rst
+   software/SfMInit_ImageListing.rst
    bibliography
 
 

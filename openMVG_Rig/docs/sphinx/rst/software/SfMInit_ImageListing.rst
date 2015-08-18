@@ -36,21 +36,21 @@ Arguments description:
   - **[-c|--channelFile]**  list of subposes to keep for 3D reconstruction
 
   - **[-r|--rigidRig]** Use non central camera structure (i.e use rigid rig or not)
-  
+
     - 0: no rigid rig
     - 1: with rigid rig structure (default)
 
   - **[-p|--useCalibPrincipalPoint]** Use principal point of calibration or not
-  
+
     - 0: do not use calibration principal point
     - 1: use calibration principal point (default)
 
-  - **[-a|--lowerBound]** lower bound limit for timestamp. 
-      
+  - **[-a|--lowerBound]** lower bound limit for timestamp.
+
     If image timestamp is less than lower bound, do not use it for 3D reconstruction
 
-  - **[-b|--upperBound]** upper bound limit for timestamp. 
-  
+  - **[-b|--upperBound]** upper bound limit for timestamp.
+
     If image timestamp is bigger than upper bound, do not use it for 3D reconstruction
 
   - **[-f|--focal]** (value in pixels)
@@ -68,7 +68,7 @@ Before using the software, you could create a file where the channel you will us
    24
    25
 
-The general usage of openMVGRig_SfMInit_ImageListing is 
+The general usage of openMVGRig_SfMInit_ImageListing is
 
 .. code-block:: c++
 
@@ -84,14 +84,14 @@ For lists.txt file using rig structure, principal point, focal of calibration an
   // Example
   $ listomvg -i images/ -o matches/ -m AA-BB-CC-DD-EE-FF -d /data/ -c channel.txt
 
-For lists.txt file with timestamp range and rig structure, 
+For lists.txt file with timestamp range and rig structure,
 
 .. code-block:: c++
 
   // Example
   $ listomvg -i images/ -o matches/ -m AA-BB-CC-DD-EE-FF -d /data/ -a 012345679_012345 -b 1234567890_012345
 
-For lists.txt file with constant focal and principal point at the center of image, 
+For lists.txt file with constant focal and principal point at the center of image,
 
 .. code-block:: c++
 
@@ -104,13 +104,6 @@ For lists.txt file using principal point, focal of calibration and no rig struct
 
   // Example
   $ listomvg -i images/ -o matches/ -m AA-BB-CC-DD-EE-FF -d /data/ -r 0 
-
-Once your have computed your dataset description you can compute the image features:
-
-.. toctree::
-   :maxdepth: 1
-
-   ./ComputeFeatures.rst
 
 From lists.txt to sfm_data.json
 ---------------------------------
