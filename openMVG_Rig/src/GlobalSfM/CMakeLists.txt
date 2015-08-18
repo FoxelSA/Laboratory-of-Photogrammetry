@@ -44,6 +44,10 @@ add_executable(openMVGRig_GlobalSfM
   sfm_engine_rigid_rig.cpp
   sfm_robust_relative_pose_rig.hpp
   sfm_robust_relative_pose_rig.cpp
+  sfm_engine_translation_averaging.hpp
+  sfm_engine_translation_averaging.cpp
+  triplet_t_ACRansac_kernelAdaptator.hpp
+  triplet_t_solver_rig.hpp
   main_GlobalSfM.cpp )
 
 add_dependencies(openMVGRig_GlobalSfM opengv )

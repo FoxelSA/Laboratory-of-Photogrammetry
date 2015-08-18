@@ -80,7 +80,8 @@ protected:
   /// Compute/refine relative translations and compute global translations
   bool Compute_Global_Translations
   (
-    const Hash_Map<IndexT, Mat3> & global_rotations
+    const Hash_Map<IndexT, Mat3> & global_rotations,
+    matching::PairWiseMatches & tripletWise_matches  
   );
 
   /// Compute the initial structure of the scene

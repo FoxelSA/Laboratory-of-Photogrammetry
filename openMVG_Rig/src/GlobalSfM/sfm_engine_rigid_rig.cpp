@@ -37,6 +37,7 @@
  */
 
 #include "./sfm_engine_rigid_rig.hpp"
+#include "./sfm_engine_translation_averaging.hpp"
 #include "./sfm_robust_relative_pose_rig.hpp"
 #include "openMVG/multiview/essential.hpp"
 
@@ -150,7 +151,8 @@ bool ReconstructionEngine_RelativeMotions_RigidRig::Process() {
     std::cerr << "GlobalSfM:: Rotation Averaging failure!" << std::endl;
     return false;
   }
-  if (!Compute_Global_Translations(global_rotations))
+  matching::PairWiseMatches  tripletWise_matches;
+  if (!Compute_Global_Translations(global_rotations, tripletWise_matches))
   {
     std::cerr << "GlobalSfM:: Translation Averaging failure!" << std::endl;
     return false;
@@ -283,10 +285,28 @@ bool ReconstructionEngine_RelativeMotions_RigidRig::Compute_Global_Rotations
 /// Compute/refine relative translations and compute global translations
 bool ReconstructionEngine_RelativeMotions_RigidRig::Compute_Global_Translations
 (
-  const Hash_Map<IndexT, Mat3> & global_rotations
+  const Hash_Map<IndexT, Mat3> & global_rotations,
+  matching::PairWiseMatches & tripletWise_matches
 )
 {
-  return false;
+  // Translation averaging (compute translations & update them to a global common coordinates system)
+  GlobalSfMRig_Translation_AveragingSolver translation_averaging_solver;
+  const bool bTranslationAveraging = translation_averaging_solver.Run(
+    _eTranslationAveragingMethod,
+    _sfm_data,
+    _normalized_features_provider.get(),
+    _matches_provider,
+    global_rotations,
+    tripletWise_matches);
+
+  if (!_sLoggingFile.empty())
+  {
+    Save(_sfm_data,
+      stlplus::create_filespec(stlplus::folder_part(_sLoggingFile), "cameraPath_translation_averaging", "ply"),
+      ESfM_Data(EXTRINSICS));
+  }
+
+  return bTranslationAveraging;
 }
 
 /// Compute the initial structure of the scene
@@ -464,7 +484,6 @@ void ReconstructionEngine_RelativeMotions_RigidRig::Compute_Relative_Rotations
 
             // update map
             map_bearingIdToTrackId[bearingVectorsRigTwo.size()-1] = iterTracks->first;
-            }
           }
         }
       }// end loop on tracks
