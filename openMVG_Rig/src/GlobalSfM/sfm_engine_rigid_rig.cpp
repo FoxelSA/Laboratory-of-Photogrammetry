@@ -449,16 +449,20 @@ void ReconstructionEngine_RelativeMotions_RigidRig::Compute_Relative_Rotations
             bearing_one.normalized();
             bearing_two.normalized();
 
-            // add bearing vectors to list and update correspondences list
-            bearingVectorsRigOne.push_back( bearing_one );
-            camCorrespondencesRigOne.push_back( intrinsic_index_I );
+            // add bearing vectors if they do not belong to the same pose
+            if( view_I->id_pose != view_J->id_pose )
+            {
+              // add bearing vectors to list and update correspondences list
+              bearingVectorsRigOne.push_back( bearing_one );
+              camCorrespondencesRigOne.push_back( intrinsic_index_I );
 
-            // add bearing vectors to list and update correspondences list
-            bearingVectorsRigTwo.push_back( bearing_two );
-            camCorrespondencesRigTwo.push_back( intrinsic_index_J );
+              // add bearing vectors to list and update correspondences list
+              bearingVectorsRigTwo.push_back( bearing_two );
+              camCorrespondencesRigTwo.push_back( intrinsic_index_J );
 
-            // update map
-            map_bearingIdToTrackId[bearingVectorsRigTwo.size()-1] = iterTracks->first;
+              // update map
+              map_bearingIdToTrackId[bearingVectorsRigTwo.size()-1] = iterTracks->first;
+            }
           }
         }
       }// end loop on tracks
