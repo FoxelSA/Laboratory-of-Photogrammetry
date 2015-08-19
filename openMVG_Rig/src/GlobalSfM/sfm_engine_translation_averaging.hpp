@@ -79,14 +79,15 @@ private:
     const Hash_Map<IndexT, Mat3> & map_globalR,
     matching::PairWiseMatches &tripletWise_matches);
 
-  //-- Perform a trifocal estimation of the graph contain in vec_triplets with an
-  // edge coverage algorithm. It's complexity is sub-linear in term of edges count.
+  //-- Compute the relative translations on the rotations graph.
+  // Compute relative translations by using triplets of poses.
+  // Use an edge coverage algorithm to reduce the graph covering complexity
+  // Complexity: sub-linear in term of edges count.
   void ComputePutativeTranslation_EdgesCoverage(
     const SfM_Data & sfm_data,
     const Hash_Map<IndexT, Mat3> & map_globalR,
     const Features_Provider * normalized_features_provider,
     const Matches_Provider * matches_provider,
-    const std::vector< graph::Triplet > & vec_triplets,
     RelativeInfo_Vec & vec_initialEstimates,
     matching::PairWiseMatches & newpairMatches);
 

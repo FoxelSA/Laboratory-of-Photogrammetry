@@ -75,7 +75,21 @@ bool GlobalSfMRig_Translation_AveragingSolver::Run(
   matching::PairWiseMatches & tripletWise_matches
 )
 {
-  return false;
+  // Compute the relative translations and save them to vec_initialRijTijEstimates:
+  Compute_translations(
+    sfm_data,
+    normalized_features_provider,
+    matches_provider,
+    map_globalR,
+    tripletWise_matches);
+
+  // TODO: Keep the largest Biedge connected component graph of relative translations
+
+  // Compute the global translations
+  return Translation_averaging(
+    eTranslationAveragingMethod,
+    sfm_data,
+    map_globalR);
 }
 
 bool GlobalSfMRig_Translation_AveragingSolver::Translation_averaging(
@@ -93,7 +107,21 @@ void GlobalSfMRig_Translation_AveragingSolver::Compute_translations(
   const Hash_Map<IndexT, Mat3> & map_globalR,
   matching::PairWiseMatches &tripletWise_matches)
 {
-   // have to do someting here
+  std::cout << "\n-------------------------------" << "\n"
+    << " Relative translations computation: " << "\n"
+    << "-------------------------------" << std::endl;
+
+  // Compute relative translations over the graph of global rotations
+  //  thanks to an edge coverage algorithm
+
+
+  ComputePutativeTranslation_EdgesCoverage(
+    sfm_data,
+    map_globalR,
+    normalized_features_provider,
+    matches_provider,
+    vec_initialRijTijEstimates,
+    tripletWise_matches);
 }
 
 //-- Perform a trifocal estimation of the graph contain in vec_triplets with an
@@ -103,11 +131,57 @@ void GlobalSfMRig_Translation_AveragingSolver::ComputePutativeTranslation_EdgesC
   const Hash_Map<IndexT, Mat3> & map_globalR,
   const Features_Provider * normalized_features_provider,
   const Matches_Provider * matches_provider,
-  const std::vector< graph::Triplet > & vec_triplets,
   RelativeInfo_Vec & vec_initialEstimates,
   matching::PairWiseMatches & newpairMatches)
 {
-  // have to do something here
+  openMVG::system::Timer timerLP_triplet;
+
+  //--
+  // Compute the relative translations using triplets of rotations over the rotation graph.
+  //--
+  //
+  // 1. List plausible triplets over the global rotation pose graph Ids.
+  //   - list all edges that have support in the rotation pose graph
+  //
+  Pair_Set matches_pair_belong_to_pose_ids;
+  std::set<IndexT> set_pose_ids;
+  std::transform(map_globalR.begin(), map_globalR.end(),
+    std::inserter(set_pose_ids, set_pose_ids.begin()), stl::RetrieveKey());
+  // List shared correspondences (pairs) between poses
+  for (const auto & match_iterator : matches_provider->_pairWise_matches)
+  {
+    const Pair pair = match_iterator.first;
+    const View * v1 = sfm_data.GetViews().at(pair.first).get();
+    const View * v2 = sfm_data.GetViews().at(pair.second).get();
+    // Consider iff the pair is supported by the rotation graph
+    if (v1->id_pose != v2->id_pose &&
+        set_pose_ids.count(v1->id_pose) && set_pose_ids.count(v2->id_pose))
+    {
+      matches_pair_belong_to_pose_ids.insert(
+        std::move(std::make_pair(v1->id_pose, v2->id_pose)));
+    }
+  }
+  // List putative triplets (from global rotations Ids)
+  const std::vector< graph::Triplet > vec_triplets =
+    graph::tripletListing(matches_pair_belong_to_pose_ids);
+  std::cout << "#Triplets: " << vec_triplets.size() << std::endl;
+
+
+  {
+    // Compute triplets of translations
+    // Avoid to cover each edge of the graph by using an edge coverage algorithm
+    // An estimated triplets of translation mark three edges as estimated.
+  }
+
+  const double timeLP_triplet = timerLP_triplet.elapsed();
+  std::cout << "TRIPLET COVERAGE TIMING: " << timeLP_triplet << " seconds" << std::endl;
+
+  std::cout << "-------------------------------" << "\n"
+      << "-- #Effective translations estimates: " << vec_initialRijTijEstimates.size()/3
+      << " from " << vec_triplets.size() << " triplets.\n"
+      << "-- resulting in " <<vec_initialRijTijEstimates.size() << " translation estimation.\n"
+      << "-- timing to obtain the relative translations: " << timeLP_triplet << " seconds.\n"
+      << "-------------------------------" << std::endl;
 }
 
 // Robust estimation and refinement of a translation and 3D points of an image triplets.
