@@ -143,7 +143,7 @@ void GlobalSfMRig_Translation_AveragingSolver::ComputePutativeTranslation_EdgesC
   // 1. List plausible triplets over the global rotation pose graph Ids.
   //   - list all edges that have support in the rotation pose graph
   //
-  Pair_Set matches_pair_belong_to_pose_ids;
+  Pair_Set rotation_pose_id_graph;
   std::set<IndexT> set_pose_ids;
   std::transform(map_globalR.begin(), map_globalR.end(),
     std::inserter(set_pose_ids, set_pose_ids.begin()), stl::RetrieveKey());
@@ -157,15 +157,14 @@ void GlobalSfMRig_Translation_AveragingSolver::ComputePutativeTranslation_EdgesC
     if (v1->id_pose != v2->id_pose &&
         set_pose_ids.count(v1->id_pose) && set_pose_ids.count(v2->id_pose))
     {
-      matches_pair_belong_to_pose_ids.insert(
+      rotation_pose_id_graph.insert(
         std::move(std::make_pair(v1->id_pose, v2->id_pose)));
     }
   }
   // List putative triplets (from global rotations Ids)
   const std::vector< graph::Triplet > vec_triplets =
-    graph::tripletListing(matches_pair_belong_to_pose_ids);
+    graph::tripletListing(rotation_pose_id_graph);
   std::cout << "#Triplets: " << vec_triplets.size() << std::endl;
-
 
   {
     // Compute triplets of translations
@@ -189,7 +188,7 @@ bool GlobalSfMRig_Translation_AveragingSolver::Estimate_T_triplet(
   const SfM_Data & sfm_data,
   const Hash_Map<IndexT, Mat3> & map_globalR,
   const Features_Provider * normalized_features_provider,
-  const openMVG::tracks::STLMAPTracks & map_tracksCommon,
+  const Matches_Provider * matches_provider,
   const graph::Triplet & poses_id,
   std::vector<Vec3> & vec_tis,
   double & dPrecision, // UpperBound of the precision found by the AContrario estimator
@@ -197,6 +196,45 @@ bool GlobalSfMRig_Translation_AveragingSolver::Estimate_T_triplet(
   const double ThresholdUpperBound, //Threshold used for the trifocal tensor estimation solver used in AContrario Ransac
   const std::string & sOutDirectory) const
 {
+  const size_t I = poses_id.i, J = poses_id.j , K = poses_id.k;
+
+  // List matches that belong to the triplet of poses
+  PairWiseMatches map_triplet_matches;
+  std::set<IndexT> set_pose_ids;
+  set_pose_ids.insert(poses_id.i);
+  set_pose_ids.insert(poses_id.j);
+  set_pose_ids.insert(poses_id.k);
+  // List shared correspondences (pairs) between poses
+  for (const auto & match_iterator : matches_provider->_pairWise_matches)
+  {
+    const Pair pair = match_iterator.first;
+    const View * v1 = sfm_data.GetViews().at(pair.first).get();
+    const View * v2 = sfm_data.GetViews().at(pair.second).get();
+    // Consider iff the pair is supported by the triplet & rotation graph
+    const bool b_different_pose_id = v1->id_pose != v2->id_pose;
+    const int covered_pose =
+      set_pose_ids.count(v1->id_pose) +
+      set_pose_ids.count(v2->id_pose);
+    // Different pose Id and the current edge cover the triplet edge
+    if (b_different_pose_id && covered_pose == 2 )
+    {
+      map_triplet_matches.insert(
+        std::make_pair( pair, std::move(match_iterator.second)) );
+    }
+  }
+
+  openMVG::tracks::STLMAPTracks rig_tracks;
+
+  openMVG::tracks::TracksBuilder tracksBuilder;
+  tracksBuilder.Build(map_triplet_matches);
+  tracksBuilder.Filter(3);
+  tracksBuilder.ExportToSTL(rig_tracks);
+
+  // Evaluate the triplet for relative translation computation:
+  // 1. From tracks initialize the structure observation
+  // 2. Setup the known parameters (camera intrinsics K + subposes) + global rotations
+  // 3. Solve the unknown: relative translations
+
   return false;
 }
 

@@ -96,7 +96,7 @@ private:
     const SfM_Data & sfm_data,
     const Hash_Map<IndexT, Mat3> & map_globalR,
     const Features_Provider * normalized_features_provider,
-    const openMVG::tracks::STLMAPTracks & map_tracksCommon,
+    const Matches_Provider * matches_provider,
     const graph::Triplet & poses_id,
     std::vector<Vec3> & vec_tis,
     double & dPrecision, // UpperBound of the precision found by the AContrario estimator
