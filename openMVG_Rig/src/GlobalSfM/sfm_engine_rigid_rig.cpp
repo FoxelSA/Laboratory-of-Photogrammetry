@@ -224,12 +224,12 @@ bool ReconstructionEngine_RelativeMotions_RigidRig::Compute_Global_Rotations
       iter != relatives_Rt.end(); ++iter)
     {
       const openMVG::relativeInfo & rel = *iter;
-      const PairWiseMatches & map_matches = _matches_provider->_pairWise_matches;
-      if (map_matches.count(rel.first)) // If the pair support some matches
+      // TODO: use a weight that count the number of matches between the pose
+      // /!\ sum the relative matches that belong to the relative pose ids
       {
         vec_relativeRotEstimate.push_back(RelativeRotation(
           rel.first.first, rel.first.second,
-          rel.second.first, map_matches.size()));
+          rel.second.first, 1.0 ));
       }
     }
   }
