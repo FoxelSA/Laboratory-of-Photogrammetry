@@ -37,6 +37,7 @@
  */
 
 #include "./sfm_engine_translation_averaging.hpp"
+#include "./triplet_t_ACRansac_kernelAdaptator.hpp"
 
 #include "openMVG/sfm/sfm_filters.hpp"
 #include "openMVG/sfm/pipelines/global/sfm_global_reindex.hpp"
@@ -196,6 +197,14 @@ bool GlobalSfMRig_Translation_AveragingSolver::Estimate_T_triplet(
   const double ThresholdUpperBound, //Threshold used for the trifocal tensor estimation solver used in AContrario Ransac
   const std::string & sOutDirectory) const
 {
+  // namespaces
+  using namespace linearProgramming;
+  using namespace lInfinityCV;
+  using namespace openMVG::trifocal;
+  using namespace openMVG::trifocal::kernel;
+  using namespace openMVG::tracks;
+
+  // poses index initialization
   const size_t I = poses_id.i, J = poses_id.j , K = poses_id.k;
 
   // List matches that belong to the triplet of poses
@@ -235,7 +244,161 @@ bool GlobalSfMRig_Translation_AveragingSolver::Estimate_T_triplet(
   // 2. Setup the known parameters (camera intrinsics K + subposes) + global rotations
   // 3. Solve the unknown: relative translations
 
-  return false;
+  // Get rotations:
+  std::vector<Mat3> vec_global_KR_Triplet;
+  vec_global_KR_Triplet.push_back(map_globalR.at(I));
+  vec_global_KR_Triplet.push_back(map_globalR.at(J));
+  vec_global_KR_Triplet.push_back(map_globalR.at(K));
+
+  // check that there is enough correspondances to evaluate model
+  const size_t  rigSize = sfm_data.GetIntrinsics().size();
+  if( rig_tracks.size() < 50 * rigSize )
+    return false ;
+
+  // initialize rig structure for relative translation estimation
+  std::vector<Vec3>  rigOffsets;
+  std::vector<Mat3>  rigRotations;
+  double             minFocal=1.0e10;
+
+  // Update rig structure from OpenMVG data to OpenGV convention
+  for (const auto & intrinsicVal : sfm_data.GetIntrinsics())
+  {
+    const cameras::IntrinsicBase * intrinsicPtr = intrinsicVal.second.get();
+    if ( intrinsicPtr->getType() == cameras::PINHOLE_RIG_CAMERA )
+    {
+      // retrieve information from shared pointer
+      const cameras::Rig_Pinhole_Intrinsic * rig_intrinsicPtr = dynamic_cast< const cameras::Rig_Pinhole_Intrinsic * > (intrinsicPtr);
+      const geometry::Pose3 sub_pose = rig_intrinsicPtr->get_subpose();
+      const double focal = rig_intrinsicPtr->focal();
+
+      // update rig stucture
+      const IndexT index = intrinsicVal.first;
+      rigOffsets[index]   = sub_pose.center();
+      rigRotations[index] = sub_pose.rotation();
+
+      minFocal = std::min( minFocal , focal );
+    }
+  }
+
+  // initialize rigId map
+  std::map  < size_t, size_t > map_rigIdToTripletId;
+  map_rigIdToTripletId[I] = 0; map_rigIdToTripletId[J] = 1; map_rigIdToTripletId[K] = 2;
+
+  // initialize data for model evaluation
+  std::vector < std::vector < std::vector < double > > > featsAndRigIdPerTrack;
+  std::map  <size_t, size_t>  sampleToTrackId;
+  size_t cpt = 0;
+
+  // List the tracks to associate a pair of bearing vector to a track Id
+  std::map < size_t, size_t >  map_bearingIdToTrackId;
+  for (STLMAPTracks::const_iterator iterTracks = rig_tracks.begin();
+    iterTracks != rig_tracks.end(); ++iterTracks, ++cpt)
+  {
+    const submapTrack & track = iterTracks->second;
+    for (submapTrack::const_iterator iterTrack_I = track.begin();
+      iterTrack_I != track.end(); ++iterTrack_I)
+    {
+      const size_t I  = iterTrack_I->first;
+      const size_t feat_I = iterTrack_I->second;
+      submapTrack::const_iterator iterTrack_J = iterTrack_I;
+      std::advance(iterTrack_J, 1);
+
+      for (iterTrack_J; iterTrack_J != track.end(); ++iterTrack_J)
+      {
+        const size_t J  = iterTrack_J->first;
+        const size_t feat_J = iterTrack_J->second;
+        submapTrack::const_iterator iterTrack_K = iterTrack_J;
+        std::advance(iterTrack_K, 1);
+
+        for (iterTrack_K; iterTrack_K != track.end(); ++iterTrack_K)
+        {
+          const size_t K  = iterTrack_K->first;
+          const size_t feat_K = iterTrack_K->second;
+
+          // initialize view structure
+          const View * view_I = sfm_data.views.at(I).get();
+          const View * view_J = sfm_data.views.at(J).get();
+          const View * view_K = sfm_data.views.at(K).get();
+
+          // initialize intrinsic group of cameras I and J
+          const IndexT intrinsic_index_I = view_I->id_intrinsic;
+          const IndexT intrinsic_index_J = view_J->id_intrinsic;
+          const IndexT intrinsic_index_K = view_K->id_intrinsic;
+
+          // extract normalized keypoints coordinates
+          Vec3   bearing_I, bearing_J, bearing_K;
+          bearing_I << normalized_features_provider->feats_per_view.at(I).at(feat_I).coords().cast<double>(), 1.0;
+          bearing_J << normalized_features_provider->feats_per_view.at(J).at(feat_J).coords().cast<double>(), 1.0;
+          bearing_K << normalized_features_provider->feats_per_view.at(K).at(feat_K).coords().cast<double>(), 1.0;
+
+          // initialize relative translation data container
+          std::vector<double>   feat_cam_I(4);
+          std::vector<double>   feat_cam_J(4);
+          std::vector<double>   feat_cam_K(4);
+
+          // fill data container
+          feat_cam_I[0] = bearing_I[0];  feat_cam_I[1] = bearing_I[1]; feat_cam_I[2] = intrinsic_index_I; feat_cam_I[3] = map_rigIdToTripletId.at(I);
+          feat_cam_J[0] = bearing_J[0];  feat_cam_J[1] = bearing_J[1]; feat_cam_J[2] = intrinsic_index_J; feat_cam_J[3] = map_rigIdToTripletId.at(J);
+          feat_cam_K[0] = bearing_K[0];  feat_cam_K[1] = bearing_K[1]; feat_cam_K[2] = intrinsic_index_K; feat_cam_K[3] = map_rigIdToTripletId.at(K);
+
+          // export it
+          std::vector < std::vector < double > >   tmp;
+          tmp.push_back(feat_cam_I);
+          tmp.push_back(feat_cam_J);
+          tmp.push_back(feat_cam_K);
+          featsAndRigIdPerTrack.push_back( tmp );
+          sampleToTrackId[ sampleToTrackId.size() ] = cpt;
+        }
+      }
+    }
+  }
+  // set thresholds for relative translation estimation
+  const size_t  ORSA_ITER = 1024;             // max number of iterations of AC-RANSAC
+
+  // compute model
+  typedef  rigTrackTisXisTrifocalSolver  SolverType;
+
+  typedef rig_TrackTrifocalKernel_ACRansac_N_tisXis<
+    rigTrackTisXisTrifocalSolver,
+    rigTrackTisXisTrifocalSolver,
+    rigTrackTrifocalTensorModel> KernelType;
+  KernelType kernel(featsAndRigIdPerTrack, vec_global_KR_Triplet, rigRotations, rigOffsets, ThresholdUpperBound);
+
+  rigTrackTrifocalTensorModel T;
+  std::pair<double,double> acStat = robust::ACRANSAC(kernel, vec_inliers, ORSA_ITER, &T, dPrecision, false );
+  dPrecision = acStat.first;
+
+  //-- Export data in order to have an idea of the precision of the estimates
+  vec_tis.resize(3);
+  vec_tis[0] = T.t1;
+  vec_tis[1] = T.t2;
+  vec_tis[2] = T.t3;
+
+  // update inlier list
+  std::set <size_t>  inliers_tracks;
+  for( size_t i = 0 ; i < vec_inliers.size() ; ++i )
+      inliers_tracks.insert( sampleToTrackId[vec_inliers[i]] );
+
+  std::vector <size_t>  inliers;
+  for( size_t i = 0 ; i < rig_tracks.size() ; ++i )
+     if( inliers_tracks.find(i) !=  inliers_tracks.end() )
+          inliers.push_back( i );
+
+  vec_inliers.swap( inliers );
+
+
+  // if there is more than 2/3 of inliers, keep mondel
+  const bool bTest =  ( vec_inliers.size() > 0.66 * rig_tracks.size() ) ;
+
+  if (!bTest)
+  {
+    std::cout << "Triplet rejected : AC: " << dPrecision
+      << " inliers count " << inliers_tracks.size()
+      << " total putative " << featsAndRigIdPerTrack.size() << std::endl;
+  }
+
+  return bTest ;
+
 }
 
 } // namespace sfm

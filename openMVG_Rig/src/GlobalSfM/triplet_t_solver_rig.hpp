@@ -38,10 +38,14 @@
 
 #pragma once
 
+#include "openMVG/numeric/numeric.h"
+#include "openMVG/linearProgramming/linearProgrammingInterface.hpp"
+#include <fstream>
+#include <utility>
+#include <vector>
+
 namespace openMVG   {
 namespace lInfinityCV  {
-
-using namespace linearProgramming;
 
 //-- Estimate the translation and the structure
 //    from known image points coordinates and camera rotations.
@@ -60,7 +64,7 @@ void EncodeRigTiXi
   double sigma, // Start upper bound
   sRMat & A,
   Vec & C,
-  std::vector<LP_Constraints::eLP_SIGN> & vec_sign,
+  std::vector<openMVG::linearProgramming::LP_Constraints::eLP_SIGN> & vec_sign,
   std::vector<double> & vec_costs,
   std::vector< std::pair<double,double> > & vec_bounds
 )
@@ -111,7 +115,7 @@ void EncodeRigTiXi
     A.coeffRef(rowPos, TVAR(indexRig, 1)) = Rc(2,1);
     A.coeffRef(rowPos, TVAR(indexRig, 2)) = Rc(2,2);
     C(rowPos) = 1e-2 - tc(2); // Force a minimum depth to be at least 1e-2 meters
-    vec_sign[rowPos] = LP_Constraints::LP_GREATER_OR_EQUAL;
+    vec_sign[rowPos] = openMVG::linearProgramming::LP_Constraints::LP_GREATER_OR_EQUAL;
     ++rowPos;
 
     const Vec2 pt  = M.block<2,1>(0,k);
@@ -131,7 +135,7 @@ void EncodeRigTiXi
     A.coeffRef(rowPos, TVAR(indexRig, 1)) = Rc(0,1) + (sigma-u) * Rc(2,1);
     A.coeffRef(rowPos, TVAR(indexRig, 2)) = Rc(0,2) + (sigma-u) * Rc(2,2);
     C(rowPos) = -tc(0) -tc(2) * (sigma-u);
-    vec_sign[rowPos] = LP_Constraints::LP_GREATER_OR_EQUAL;
+    vec_sign[rowPos] = openMVG::linearProgramming::LP_Constraints::LP_GREATER_OR_EQUAL;
     ++rowPos;
 
     A.coeffRef(rowPos, XVAR(indexPt3D, 0)) = RcRi(0,0) - (sigma+u) * RcRi(2,0);
@@ -141,7 +145,7 @@ void EncodeRigTiXi
     A.coeffRef(rowPos, TVAR(indexRig, 1)) = Rc(0,1) - (sigma+u) * Rc(2,1);
     A.coeffRef(rowPos, TVAR(indexRig, 2)) = Rc(0,2) - (sigma+u) * Rc(2,2);
     C(rowPos) = -tc(0) + tc(2) * (sigma + u);
-    vec_sign[rowPos] = LP_Constraints::LP_LESS_OR_EQUAL;
+    vec_sign[rowPos] = openMVG::linearProgramming::LP_Constraints::LP_LESS_OR_EQUAL;
     ++rowPos;
 
     // y-residual =>
@@ -157,7 +161,7 @@ void EncodeRigTiXi
     A.coeffRef(rowPos, TVAR(indexRig, 1)) = Rc(1,1) + (sigma-v) * Rc(2,1);
     A.coeffRef(rowPos, TVAR(indexRig, 2)) = Rc(1,2) + (sigma-v) * Rc(2,2);
     C(rowPos) = -tc(1) -tc(2) * (sigma-v);
-    vec_sign[rowPos] = LP_Constraints::LP_GREATER_OR_EQUAL;
+    vec_sign[rowPos] = openMVG::linearProgramming::LP_Constraints::LP_GREATER_OR_EQUAL;
     ++rowPos;
 
     A.coeffRef(rowPos, XVAR(indexPt3D, 0)) = RcRi(1,0) - (sigma+v) * RcRi(2,0);
@@ -167,7 +171,7 @@ void EncodeRigTiXi
     A.coeffRef(rowPos, TVAR(indexRig, 1)) = Rc(1,1) - (sigma+v) * Rc(2,1);
     A.coeffRef(rowPos, TVAR(indexRig, 2)) = Rc(1,2) - (sigma+v) * Rc(2,2);
     C(rowPos) = -tc(1) + tc(2) * (sigma+v);
-    vec_sign[rowPos] = LP_Constraints::LP_LESS_OR_EQUAL;
+    vec_sign[rowPos] = openMVG::linearProgramming::LP_Constraints::LP_LESS_OR_EQUAL;
     ++rowPos;
   }
 # undef TVAR
@@ -184,7 +188,7 @@ void EncodeRigCiXi
   double sigma, // Start upper bound
   sRMat & A,
   Vec & C,
-  std::vector<LP_Constraints::eLP_SIGN> & vec_sign,
+  std::vector<openMVG::linearProgramming::LP_Constraints::eLP_SIGN> & vec_sign,
   std::vector<double> & vec_costs,
   std::vector< std::pair<double,double> > & vec_bounds
 )
@@ -339,7 +343,7 @@ void EncodeRigCiXi
       A.coeffRef(rowpos, XVAR(pointIndex, 0)) =  Rb0(i);
       A.coeffRef(rowpos, XVAR(pointIndex, 1)) = -Rb1(i);
       C(rowpos) = sigma - R_c0(i) + R_c1(i);
-      vec_sign[rowpos] = LP_Constraints::LP_LESS_OR_EQUAL;
+      vec_sign[rowpos] = openMVG::linearProgramming::LP_Constraints::LP_LESS_OR_EQUAL;
       ++rowpos;
 
       // ||X_0 -X_1 || \leq \sigma is equivalent to
@@ -355,7 +359,7 @@ void EncodeRigCiXi
       A.coeffRef(rowpos, XVAR(pointIndex, 0)) =  Rb0(i);
       A.coeffRef(rowpos, XVAR(pointIndex, 1)) = -Rb1(i);
       C(rowpos) = -sigma - R_c0(i) + R_c1(i);
-      vec_sign[rowpos] = LP_Constraints::LP_GREATER_OR_EQUAL;
+      vec_sign[rowpos] = openMVG::linearProgramming::LP_Constraints::LP_GREATER_OR_EQUAL;
       ++rowpos;
 
       // ||X_0 -X_2 || \leq \sigma is equivalent to
@@ -371,7 +375,7 @@ void EncodeRigCiXi
       A.coeffRef(rowpos, XVAR(pointIndex, 0)) =  Rb0(i);
       A.coeffRef(rowpos, XVAR(pointIndex, 2)) = -Rb2(i);
       C(rowpos) = sigma - R_c0(i) + R_c2(i);
-      vec_sign[rowpos] = LP_Constraints::LP_LESS_OR_EQUAL;
+      vec_sign[rowpos] = openMVG::linearProgramming::LP_Constraints::LP_LESS_OR_EQUAL;
       ++rowpos;
 
       // ||X_0 -X_2 || \leq \sigma is equivalent to
@@ -387,7 +391,7 @@ void EncodeRigCiXi
       A.coeffRef(rowpos, XVAR(pointIndex, 0)) =  Rb0(i);
       A.coeffRef(rowpos, XVAR(pointIndex, 2)) = -Rb2(i);
       C(rowpos) = -sigma - R_c0(i) + R_c2(i);
-      vec_sign[rowpos] = LP_Constraints::LP_GREATER_OR_EQUAL;
+      vec_sign[rowpos] = openMVG::linearProgramming::LP_Constraints::LP_GREATER_OR_EQUAL;
       ++rowpos;
 
       // ||X_1 -X_2 || \leq \sigma is equivalent to
@@ -403,7 +407,7 @@ void EncodeRigCiXi
       A.coeffRef(rowpos, XVAR(pointIndex, 1)) =  Rb1(i);
       A.coeffRef(rowpos, XVAR(pointIndex, 2)) = -Rb2(i);
       C(rowpos) = sigma - R_c1(i) + R_c2(i);
-      vec_sign[rowpos] = LP_Constraints::LP_LESS_OR_EQUAL;
+      vec_sign[rowpos] = openMVG::linearProgramming::LP_Constraints::LP_LESS_OR_EQUAL;
       ++rowpos;
 
       // ||X_1 -X_2 || \leq \sigma is equivalent to
@@ -419,7 +423,7 @@ void EncodeRigCiXi
       A.coeffRef(rowpos, XVAR(pointIndex, 1)) =  Rb1(i);
       A.coeffRef(rowpos, XVAR(pointIndex, 2)) = -Rb2(i);
       C(rowpos) = -sigma - R_c1(i) + R_c2(i);
-      vec_sign[rowpos] = LP_Constraints::LP_GREATER_OR_EQUAL;
+      vec_sign[rowpos] = openMVG::linearProgramming::LP_Constraints::LP_GREATER_OR_EQUAL;
       ++rowpos;
     }
   }
@@ -450,8 +454,8 @@ struct Rig_Translation_Structure_L1_ConstraintBuilder
   }
 
   /// Setup constraints for the translation and structure problem,
-  ///  in the LP_Constraints object.
-  bool Build(double gamma, LP_Constraints_Sparse & constraint)
+  ///  in the openMVG::linearProgramming::LP_Constraints object.
+  bool Build(double gamma, openMVG::linearProgramming::LP_Constraints_Sparse & constraint)
   {
     EncodeRigCiXi(
       _M,
