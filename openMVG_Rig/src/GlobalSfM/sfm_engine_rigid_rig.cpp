@@ -424,7 +424,7 @@ void ReconstructionEngine_RelativeMotions_RigidRig::Compute_Relative_Rotations
           continue;
 
         // export pairwise matches
-        matches_rigpair.insert( std::make_pair( pairIterator, std::move(_matches_provider->_pairWise_matches.at( pairIterator ))));
+        matches_rigpair.insert( std::make_pair( pairIterator, _matches_provider->_pairWise_matches.at( pairIterator )));
       }
 
       // initialize tracks
