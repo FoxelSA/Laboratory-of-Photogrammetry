@@ -303,7 +303,7 @@ void GlobalSfMRig_Translation_AveragingSolver::ComputePutativeTranslation_EdgesC
         // Try to estimate this triplet.
         //--
         // update precision to have good value for normalized coordinates
-        double dPrecision = 8.0; // pixel
+        double dPrecision = 8.0; // upper bound of the pixel residual
         const double ThresholdUpperBound = 1.0e-2;
 
         std::vector<Vec3> vec_tis(3);
@@ -361,9 +361,6 @@ bool GlobalSfMRig_Translation_AveragingSolver::Estimate_T_triplet(
   using namespace openMVG::trifocal::kernel;
   using namespace openMVG::tracks;
 
-  // poses index initialization
-  const size_t I = poses_id.i, J = poses_id.j , K = poses_id.k;
-
   // List matches that belong to the triplet of poses
   PairWiseMatches map_triplet_matches;
   std::set<IndexT> set_pose_ids;
@@ -376,13 +373,13 @@ bool GlobalSfMRig_Translation_AveragingSolver::Estimate_T_triplet(
     const Pair pair = match_iterator.first;
     const View * v1 = sfm_data.GetViews().at(pair.first).get();
     const View * v2 = sfm_data.GetViews().at(pair.second).get();
-    // Consider iff the pair is supported by the triplet & rotation graph
+    // Consider the pair iff it is supported by the triplet & rotation graph
     const bool b_different_pose_id = v1->id_pose != v2->id_pose;
     const int covered_pose =
       set_pose_ids.count(v1->id_pose) +
       set_pose_ids.count(v2->id_pose);
     // Different pose Id and the current edge cover the triplet edge
-    if (b_different_pose_id && covered_pose == 2 )
+    if ( b_different_pose_id && covered_pose == 2 )
     {
       map_triplet_matches.insert( match_iterator );
     }
@@ -401,14 +398,12 @@ bool GlobalSfMRig_Translation_AveragingSolver::Estimate_T_triplet(
   // 3. Solve the unknown: relative translations
 
   // Get rotations:
-  std::vector<Mat3> vec_global_R_Triplet;
-  vec_global_R_Triplet.push_back(map_globalR.at(I));
-  vec_global_R_Triplet.push_back(map_globalR.at(J));
-  vec_global_R_Triplet.push_back(map_globalR.at(K));
+  const std::vector<Mat3> vec_global_R_Triplet =
+    {map_globalR.at(poses_id.i), map_globalR.at(poses_id.j), map_globalR.at(poses_id.k)};
 
   // check that there is enough correspondences to evaluate model
   const size_t rigSize = sfm_data.GetIntrinsics().size();
-  if( rig_tracks.size() < 50 * rigSize )
+  if ( rig_tracks.size() < 50 * rigSize )
     return false ;
 
   // initialize rig structure for relative translation estimation
@@ -437,8 +432,12 @@ bool GlobalSfMRig_Translation_AveragingSolver::Estimate_T_triplet(
   }
 
   // initialize rigId map
-  std::map  < size_t, size_t > map_poseIdToContinguous;
-  map_poseIdToContinguous[I] = 0; map_poseIdToContinguous[J] = 1; map_poseIdToContinguous[K] = 2;
+  const std::map< size_t, size_t > map_poseId_to_contiguous =
+    {
+      {poses_id.i,0},
+      {poses_id.j,1},
+      {poses_id.k,2}
+    };
 
   // initialize data for model evaluation
   std::vector < std::vector < std::vector < double > > > featsAndRigIdPerTrack;
@@ -485,32 +484,26 @@ bool GlobalSfMRig_Translation_AveragingSolver::Estimate_T_triplet(
           const IndexT pose_index_I = view_I->id_pose;
           const IndexT pose_index_J = view_J->id_pose;
           const IndexT pose_index_K = view_K->id_pose;
-
           // if the images are in 3 different poses
-          if( pose_index_I == I && pose_index_J == J && pose_index_K == K )
+          if (pose_index_I != pose_index_J && pose_index_J != pose_index_K && pose_index_I != pose_index_K)
           {
             // extract normalized keypoints coordinates
-            Vec3   bearing_I, bearing_J, bearing_K;
-            bearing_I << normalized_features_provider->feats_per_view.at(idx_view_I).at(feat_I).coords().cast<double>(), 1.0;
-            bearing_J << normalized_features_provider->feats_per_view.at(idx_view_J).at(feat_J).coords().cast<double>(), 1.0;
-            bearing_K << normalized_features_provider->feats_per_view.at(idx_view_K).at(feat_K).coords().cast<double>(), 1.0;
+            Vec2 bearing_I, bearing_J, bearing_K;
+            bearing_I << normalized_features_provider->feats_per_view.at(idx_view_I).at(feat_I).coords().cast<double>();
+            bearing_J << normalized_features_provider->feats_per_view.at(idx_view_J).at(feat_J).coords().cast<double>();
+            bearing_K << normalized_features_provider->feats_per_view.at(idx_view_K).at(feat_K).coords().cast<double>();
 
             // initialize relative translation data container
-            std::vector<double>   feat_cam_I(4);
-            std::vector<double>   feat_cam_J(4);
-            std::vector<double>   feat_cam_K(4);
+            const std::vector<double> feat_cam_I = { bearing_I[0], bearing_I[1], intrinsic_index_I, map_poseId_to_contiguous.at(pose_index_I) };
+            const std::vector<double> feat_cam_J = { bearing_J[0], bearing_J[1], intrinsic_index_J, map_poseId_to_contiguous.at(pose_index_J) };
+            const std::vector<double> feat_cam_K = { bearing_K[0], bearing_K[1], intrinsic_index_K, map_poseId_to_contiguous.at(pose_index_K) };
 
-            // fill data container
-            feat_cam_I[0] = bearing_I[0];  feat_cam_I[1] = bearing_I[1]; feat_cam_I[2] = intrinsic_index_I; feat_cam_I[3] = map_poseIdToContinguous.at(pose_index_I);
-            feat_cam_J[0] = bearing_J[0];  feat_cam_J[1] = bearing_J[1]; feat_cam_J[2] = intrinsic_index_J; feat_cam_J[3] = map_poseIdToContinguous.at(pose_index_J);
-            feat_cam_K[0] = bearing_K[0];  feat_cam_K[1] = bearing_K[1]; feat_cam_K[2] = intrinsic_index_K; feat_cam_K[3] = map_poseIdToContinguous.at(pose_index_K);
-
-            // export it
-            std::vector < std::vector < double > >   tmp;
-            tmp.push_back(feat_cam_I);
-            tmp.push_back(feat_cam_J);
-            tmp.push_back(feat_cam_K);
-            featsAndRigIdPerTrack.push_back( tmp );
+            // export bearing vector in the triplet pose ordering
+            std::vector<std::vector< double > > tmp(3);
+            tmp[map_poseId_to_contiguous.at(pose_index_I)]= std::move(feat_cam_I);
+            tmp[map_poseId_to_contiguous.at(pose_index_J)]= std::move(feat_cam_J);
+            tmp[map_poseId_to_contiguous.at(pose_index_K)]= std::move(feat_cam_K);
+            featsAndRigIdPerTrack.push_back( std::move(tmp) );
             sampleToTrackId[ sampleToTrackId.size() ] = cpt;
           }
         }
@@ -518,7 +511,7 @@ bool GlobalSfMRig_Translation_AveragingSolver::Estimate_T_triplet(
     }
   }
   // set thresholds for relative translation estimation
-  const size_t  ORSA_ITER = 1024;             // max number of iterations of AC-RANSAC
+  const size_t  ORSA_ITER = 1024; // max number of iterations of AC-RANSAC
 
   // compute model
   typedef  rigTrackTisXisTrifocalSolver  SolverType;
@@ -534,10 +527,7 @@ bool GlobalSfMRig_Translation_AveragingSolver::Estimate_T_triplet(
   dPrecision = acStat.first;
 
   //-- Export data in order to have an idea of the precision of the estimates
-  vec_tis.resize(3);
-  vec_tis[0] = T.t1;
-  vec_tis[1] = T.t2;
-  vec_tis[2] = T.t3;
+  vec_tis = {T.t1, T.t2, T.t3};
 
   // update inlier list
   std::set <size_t>  inliers_tracks;
@@ -551,17 +541,17 @@ bool GlobalSfMRig_Translation_AveragingSolver::Estimate_T_triplet(
 
   vec_inliers.swap( inliers );
 
-  // if there is more than 2/3 of inliers, keep model
+  // if there is more than 1/3 of inliers, keep model
   const bool bTest =  ( vec_inliers.size() > 0.30 * rig_tracks.size() ) ;
 
-  if (!bTest)
   {
-    std::cout << "Triplet rejected : AC: " << dPrecision
-      << " inliers count " << inliers_tracks.size()
+    std::cout << "Triplet : status: " << bTest
+      << " AC: " << dPrecision
+      << " inliers % " << double(inliers_tracks.size()) / rig_tracks.size() * 100.0
       << " total putative " << rig_tracks.size() << std::endl;
   }
 
-  return bTest ;
+  return bTest;
 
 }
 

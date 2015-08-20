@@ -66,7 +66,7 @@ namespace openMVG {
         for( size_t i = 0 ; i < pointInfo.size() ; ++ i)
         {
           // extract sucamera rotations and translation
-          size_t I = (size_t) pointInfo[i][2]; // intrinsic id
+          const size_t I = (size_t) pointInfo[i][2]; // intrinsic id
           const Mat3  RI = rigRotation[I];  const Vec3 tI = -RI * rigOffsets[I];
 
           // compute projection matrix
@@ -90,7 +90,7 @@ namespace openMVG {
           };
 
           //compute projection matrices
-          Vec2 pt ;
+          Vec2 pt;
           pt << pointInfo[i][0], pointInfo[i][1];
 
           views.push_back(std::make_pair ( P, pt ) );
@@ -252,15 +252,7 @@ void Fit(const std::vector<size_t> &samples, std::vector<Model> *models) const {
   }
 
   void Unnormalize(Model * model) const {
-    // Unnormalize model from the computed conditioning.
-    // Unnormalize model from the computed conditioning.
-    const Mat3 K_ = Mat3::Identity();
-    model->R1 = K_ * model->R1;
-    model->R2 = K_ * model->R2;
-    model->R3 = K_ * model->R3;
-    model->t1 = K_ * model->t1;
-    model->t2 = K_ * model->t2;
-    model->t3 = K_ * model->t3;
+    // Unnormalize model is not necessary since K is considered as Identity.
   }
 
   Mat3 normalizer1() const {return Mat3::Identity();}
