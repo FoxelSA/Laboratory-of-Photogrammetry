@@ -102,6 +102,7 @@ private:
     std::vector<Vec3> & vec_tis,
     double & dPrecision, // UpperBound of the precision found by the AContrario estimator
     std::vector<size_t> & vec_inliers,
+    openMVG::tracks::STLMAPTracks & rig_tracks,
     const double ThresholdUpperBound, //Threshold used for the trifocal tensor estimation solver used in AContrario Ransac
     const std::string & sOutDirectory) const;
 };

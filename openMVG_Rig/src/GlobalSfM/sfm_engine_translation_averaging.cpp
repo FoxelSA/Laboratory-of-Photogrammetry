@@ -60,8 +60,16 @@
 namespace openMVG{
 namespace sfm{
 
+// namespaces
+using namespace linearProgramming;
+using namespace lInfinityCV;
+using namespace openMVG::trifocal;
+using namespace openMVG::trifocal::kernel;
+using namespace openMVG::tracks;
 using namespace openMVG::cameras;
 using namespace openMVG::geometry;
+using namespace openMVG::features;
+
 
 /// Use features in normalized camera frames
 bool GlobalSfMRig_Translation_AveragingSolver::Run(
@@ -479,6 +487,7 @@ void GlobalSfMRig_Translation_AveragingSolver::ComputePutativeTranslation_EdgesC
 
         std::vector<Vec3> vec_tis(3);
         std::vector<size_t> vec_inliers;
+        openMVG::tracks::STLMAPTracks  pose_triplet_tracks;
 
         const std::string sOutDirectory = "./";
         const bool bTriplet_estimation = Estimate_T_triplet(
@@ -490,6 +499,7 @@ void GlobalSfMRig_Translation_AveragingSolver::ComputePutativeTranslation_EdgesC
           vec_tis,
           dPrecision,
           vec_inliers,
+          pose_triplet_tracks,
           ThresholdUpperBound,
           sOutDirectory);
 
@@ -529,6 +539,37 @@ void GlobalSfMRig_Translation_AveragingSolver::ComputePutativeTranslation_EdgesC
             RelativeCameraMotion(RI, ti, RK, tk, &RikGt, &tik);
             vec_initialEstimates.emplace_back(
               std::make_pair(triplet.i, triplet.k), std::make_pair(RikGt, tik));
+
+            // Add inliers as valid pairwise matches
+            for (std::vector<size_t>::const_iterator iterInliers = vec_inliers.begin();
+              iterInliers != vec_inliers.end(); ++iterInliers)
+            {
+              STLMAPTracks::const_iterator iterTracks = pose_triplet_tracks.begin();
+              std::advance(iterTracks, *iterInliers);
+              const submapTrack & subTrack = iterTracks->second;
+
+              // create pairwise matches from inlier track
+              for (size_t index_I = 0; index_I < subTrack.size() ; ++index_I)
+              { submapTrack::const_iterator iter_I = subTrack.begin();
+                std::advance(iter_I, index_I);
+
+                // extract camera indexes
+                const size_t id_view_I = iter_I->first;
+                const size_t id_feat_I = iter_I->second;
+
+                // loop on subtracks
+                for (size_t index_J = index_I+1; index_J < subTrack.size() ; ++index_J)
+                { submapTrack::const_iterator iter_J = subTrack.begin();
+                  std::advance(iter_J, index_J);
+
+                  // extract camera indexes
+                  const size_t id_view_J = iter_J->first;
+                  const size_t id_feat_J = iter_J->second;
+
+                  newpairMatches[std::make_pair(id_view_I, id_view_J)].push_back(IndMatch(id_feat_I, id_feat_J));
+                }
+              }
+            }
           }
 
           //-- Remove the 3 estimated edges
@@ -562,19 +603,10 @@ bool GlobalSfMRig_Translation_AveragingSolver::Estimate_T_triplet(
   std::vector<Vec3> & vec_tis,
   double & dPrecision, // UpperBound of the precision found by the AContrario estimator
   std::vector<size_t> & vec_inliers,
+  openMVG::tracks::STLMAPTracks & rig_tracks,
   const double ThresholdUpperBound, //Threshold used for the trifocal tensor estimation solver used in AContrario Ransac
   const std::string & sOutDirectory) const
 {
-  // namespaces
-  using namespace linearProgramming;
-  using namespace lInfinityCV;
-  using namespace openMVG::trifocal;
-  using namespace openMVG::trifocal::kernel;
-  using namespace openMVG::tracks;
-  using namespace openMVG::cameras;
-  using namespace openMVG::geometry;
-  using namespace openMVG::features;
-
   // List matches that belong to the triplet of poses
   PairWiseMatches map_triplet_matches;
   std::set<IndexT> set_pose_ids;
@@ -598,8 +630,6 @@ bool GlobalSfMRig_Translation_AveragingSolver::Estimate_T_triplet(
       map_triplet_matches.insert( match_iterator );
     }
   }
-
-  openMVG::tracks::STLMAPTracks rig_tracks;
 
   openMVG::tracks::TracksBuilder tracksBuilder;
   tracksBuilder.Build(map_triplet_matches);
