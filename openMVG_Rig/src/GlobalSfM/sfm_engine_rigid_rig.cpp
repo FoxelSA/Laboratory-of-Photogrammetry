@@ -109,8 +109,7 @@ void ReconstructionEngine_RelativeMotions_RigidRig::SetFeaturesProvider(Features
       iterPt != iter->second.end(); ++iterPt)
     {
       const Vec3 bearingVector = (*cam)(cam->get_ud_pixel(iterPt->coords().cast<double>()));
-      const Vec2 bearingVectorNormalized = bearingVector.head(2) / bearingVector(2);
-      iterPt->coords() = Vec2f(bearingVectorNormalized(0), bearingVectorNormalized(1));
+      iterPt->coords() << (bearingVector.head(2) / bearingVector(2)).cast<float>();
     }
   }
 }
