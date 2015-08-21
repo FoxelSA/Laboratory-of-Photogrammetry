@@ -39,7 +39,9 @@
 #include "./sfm_engine_translation_averaging.hpp"
 #include "./triplet_t_ACRansac_kernelAdaptator.hpp"
 
+#include "openMVG/sfm/sfm_data.hpp"
 #include "openMVG/sfm/sfm_filters.hpp"
+#include "openMVG/sfm/sfm_data_io.hpp"
 #include "openMVG/sfm/pipelines/global/sfm_global_reindex.hpp"
 #include "openMVG/sfm/pipelines/global/mutexSet.hpp"
 #include "openMVG/multiview/translation_averaging_common.hpp"
@@ -360,6 +362,9 @@ bool GlobalSfMRig_Translation_AveragingSolver::Estimate_T_triplet(
   using namespace openMVG::trifocal;
   using namespace openMVG::trifocal::kernel;
   using namespace openMVG::tracks;
+  using namespace openMVG::cameras;
+  using namespace openMVG::geometry;
+  using namespace openMVG::features;
 
   // List matches that belong to the triplet of poses
   PairWiseMatches map_triplet_matches;
@@ -540,6 +545,73 @@ bool GlobalSfMRig_Translation_AveragingSolver::Estimate_T_triplet(
           inliers.push_back( i );
 
   vec_inliers.swap( inliers );
+
+#ifdef DEBUG_TRIPLET
+  // compute 3D scene base on motion estimation
+  SfM_Data    tiny_scene;
+
+  // intialize poses (which are now shared by a group of images)
+  tiny_scene.poses[poses_id.i] = Pose3(vec_global_R_Triplet[0], -vec_global_R_Triplet[0].transpose() * T.t1 );
+  tiny_scene.poses[poses_id.j] = Pose3(vec_global_R_Triplet[1], -vec_global_R_Triplet[1].transpose() * T.t2 );
+  tiny_scene.poses[poses_id.k] = Pose3(vec_global_R_Triplet[2], -vec_global_R_Triplet[2].transpose() * T.t3 );
+
+  // insert views used by the relative pose pairs
+  for (const auto & pairIterator : map_triplet_matches )
+  {
+    // initialize camera indexes
+    const IndexT I = pairIterator.first.first;
+    const IndexT J = pairIterator.first.second;
+
+    // add views
+    tiny_scene.views.insert(*sfm_data.GetViews().find(I));
+    tiny_scene.views.insert(*sfm_data.GetViews().find(J));
+
+    // add intrinsics
+    const View * view_I = sfm_data.GetViews().at(I).get();
+    const View * view_J = sfm_data.GetViews().at(J).get();
+    tiny_scene.intrinsics.insert(*sfm_data.GetIntrinsics().find(view_I->id_intrinsic));
+    tiny_scene.intrinsics.insert(*sfm_data.GetIntrinsics().find(view_J->id_intrinsic));
+  }
+
+  // Fill sfm_data with the inliers tracks. Feed image observations: no 3D yet.
+  Landmarks & structure = tiny_scene.structure;
+  for (size_t idx=0; idx < vec_inliers.size(); ++idx)
+  {
+    const size_t trackId = vec_inliers[idx];
+    const submapTrack & track = rig_tracks[trackId];
+    Observations & obs = structure[idx].obs;
+    for (submapTrack::const_iterator it = track.begin(); it != track.end(); ++it)
+    {
+      // get view Id and feat ID
+      const size_t viewIndex = it->first;
+      const size_t featIndex = it->second;
+
+      // initialize view and get intrinsics
+      const View * view = sfm_data.GetViews().at(viewIndex).get();
+      const cameras::IntrinsicBase *  cam = sfm_data.GetIntrinsics().find(view->id_intrinsic)->second.get();
+      const cameras::Rig_Pinhole_Intrinsic * rig_intrinsicPtr = dynamic_cast< const cameras::Rig_Pinhole_Intrinsic * >(cam);
+      const Vec2  principal_point = rig_intrinsicPtr->principal_point();
+
+      // get normalized feature
+      const PointFeature & pt = normalized_features_provider->feats_per_view.at(viewIndex)[featIndex];
+      PointFeature pt_unnormalized( pt.x() * rig_intrinsicPtr->focal() + principal_point.x(),
+                                    pt.y() * rig_intrinsicPtr->focal() + principal_point.y());
+
+      obs[viewIndex] = Observation(pt_unnormalized.coords().cast<double>(), featIndex);
+    }
+  }
+
+  // Compute 3D position of the landmarks (triangulation of the observations)
+  {
+    SfM_Data_Structure_Computation_Blind structure_estimator(false);
+    structure_estimator.triangulate(tiny_scene);
+  }
+
+  // export scene for visualization
+  std::ostringstream os;
+  os << poses_id.i << "_" << poses_id.j << "_" << poses_id.k << ".ply";
+  Save(tiny_scene, os.str(), ESfM_Data(STRUCTURE | EXTRINSICS));
+#endif
 
   // if there is more than 1/3 of inliers, keep model
   const bool bTest =  ( vec_inliers.size() > 0.30 * rig_tracks.size() ) ;

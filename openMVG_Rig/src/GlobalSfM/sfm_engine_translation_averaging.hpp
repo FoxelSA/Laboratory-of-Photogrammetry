@@ -41,6 +41,7 @@
 
 #include "openMVG/sfm/sfm_data.hpp"
 #include "openMVG/multiview/translation_averaging_common.hpp"
+#include "openMVG/sfm/sfm_data_triangulation.hpp"
 #include "openMVG/sfm/pipelines/sfm_features_provider.hpp"
 #include "openMVG/sfm/pipelines/sfm_matches_provider.hpp"
 #include "openMVG/sfm/pipelines/global/GlobalSfM_translation_averaging.hpp"
