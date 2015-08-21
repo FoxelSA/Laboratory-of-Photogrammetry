@@ -156,7 +156,7 @@ bool ReconstructionEngine_RelativeMotions_RigidRig::Process() {
     std::cerr << "GlobalSfM:: Translation Averaging failure!" << std::endl;
     return false;
   }
-  if (!Compute_Initial_Structure())
+  if (!Compute_Initial_Structure(tripletWise_matches))
   {
     std::cerr << "GlobalSfM:: Cannot initialize an initial structure!" << std::endl;
     return false;
@@ -309,15 +309,170 @@ bool ReconstructionEngine_RelativeMotions_RigidRig::Compute_Global_Translations
 }
 
 /// Compute the initial structure of the scene
-bool ReconstructionEngine_RelativeMotions_RigidRig::Compute_Initial_Structure()
+bool ReconstructionEngine_RelativeMotions_RigidRig::Compute_Initial_Structure
+(
+  matching::PairWiseMatches & tripletWise_matches
+)
 {
-  return false;
+  // Build tracks from selected triplets (Union of all the validated triplet tracks (_tripletWise_matches))
+  {
+    using namespace openMVG::tracks;
+    TracksBuilder tracksBuilder;
+    tracksBuilder.Build(tripletWise_matches);
+    tracksBuilder.Filter(3);
+    STLMAPTracks map_selectedTracks; // reconstructed track (visibility per 3D point)
+    tracksBuilder.ExportToSTL(map_selectedTracks);
+
+    // Fill sfm_data with the computed tracks (no 3D yet)
+    Landmarks & structure = _sfm_data.structure;
+    IndexT idx(0);
+    for (STLMAPTracks::const_iterator itTracks = map_selectedTracks.begin();
+      itTracks != map_selectedTracks.end();
+      ++itTracks, ++idx)
+    {
+      const submapTrack & track = itTracks->second;
+      structure[idx] = Landmark();
+      Observations & obs = structure.at(idx).obs;
+      for (submapTrack::const_iterator it = track.begin(); it != track.end(); ++it)
+      {
+        const size_t imaIndex = it->first;
+        const size_t featIndex = it->second;
+        const PointFeature & pt = _features_provider->feats_per_view.at(imaIndex)[featIndex];
+        obs[imaIndex] = Observation(pt.coords().cast<double>(), featIndex);
+      }
+    }
+
+    std::cout << std::endl << "Track stats" << std::endl;
+    {
+      std::ostringstream osTrack;
+      //-- Display stats:
+      //    - number of images
+      //    - number of tracks
+      std::set<size_t> set_imagesId;
+      TracksUtilsMap::ImageIdInTracks(map_selectedTracks, set_imagesId);
+      osTrack << "------------------" << "\n"
+        << "-- Tracks Stats --" << "\n"
+        << " Tracks number: " << tracksBuilder.NbTracks() << "\n"
+        << " Images Id: " << "\n";
+      std::copy(set_imagesId.begin(),
+        set_imagesId.end(),
+        std::ostream_iterator<size_t>(osTrack, ", "));
+      osTrack << "\n------------------" << "\n";
+
+      std::map<size_t, size_t> map_Occurence_TrackLength;
+      TracksUtilsMap::TracksLength(map_selectedTracks, map_Occurence_TrackLength);
+      osTrack << "TrackLength, Occurrence" << "\n";
+      for (std::map<size_t, size_t>::const_iterator iter = map_Occurence_TrackLength.begin();
+        iter != map_Occurence_TrackLength.end(); ++iter)  {
+        osTrack << "\t" << iter->first << "\t" << iter->second << "\n";
+      }
+      osTrack << "\n";
+      std::cout << osTrack.str();
+    }
+  }
+
+  // Compute 3D position of the landmark of the structure by triangulation of the observations
+  {
+    IndexT countRemoved = 0;
+
+    openMVG::system::Timer timer;
+
+    const IndexT trackCountBefore = _sfm_data.GetLandmarks().size();
+    SfM_Data_Structure_Computation_Blind structure_estimator(true);
+    structure_estimator.triangulate(_sfm_data);
+
+    std::cout << "\n#removed tracks (invalid triangulation): " <<
+      trackCountBefore - IndexT(_sfm_data.GetLandmarks().size()) << std::endl;
+    std::cout << std::endl << "  Triangulation took (s): " << timer.elapsed() << std::endl;
+
+    // Export initial structure
+    if (!_sLoggingFile.empty())
+    {
+      Save(_sfm_data,
+        stlplus::create_filespec(stlplus::folder_part(_sLoggingFile), "initial_structure", "ply"),
+        ESfM_Data(EXTRINSICS | STRUCTURE));
+    }
+  }
+  return !_sfm_data.structure.empty();
 }
 
 // Adjust the scene (& remove outliers)
 bool ReconstructionEngine_RelativeMotions_RigidRig::Adjust()
 {
-  return false;
+  // Refine sfm_scene (in a 3 iteration process (free the parameters regarding their incertainty order)):
+
+  Bundle_Adjustment_Ceres bundle_adjustment_obj;
+  // - refine only Structure and translations
+  bool b_BA_Status = bundle_adjustment_obj.Adjust(_sfm_data, false, true, false);
+  if (b_BA_Status)
+  {
+    if (!_sLoggingFile.empty())
+    {
+      Save(_sfm_data,
+        stlplus::create_filespec(stlplus::folder_part(_sLoggingFile), "structure_00_refine_T_Xi", "ply"),
+        ESfM_Data(EXTRINSICS | STRUCTURE));
+    }
+
+    // - refine only Structure and Rotations & translations
+    b_BA_Status = bundle_adjustment_obj.Adjust(_sfm_data, true, true, false);
+    if (b_BA_Status && !_sLoggingFile.empty())
+    {
+      Save(_sfm_data,
+        stlplus::create_filespec(stlplus::folder_part(_sLoggingFile), "structure_01_refine_RT_Xi", "ply"),
+        ESfM_Data(EXTRINSICS | STRUCTURE));
+    }
+  }
+
+  if (b_BA_Status && !_bFixedIntrinsics) {
+    // - refine all: Structure, motion:{rotations, translations} and optics:{intrinsics}
+    b_BA_Status = bundle_adjustment_obj.Adjust(_sfm_data, true, true, true);
+    if (b_BA_Status && !_sLoggingFile.empty())
+    {
+      Save(_sfm_data,
+        stlplus::create_filespec(stlplus::folder_part(_sLoggingFile), "structure_02_refine_KRT_Xi", "ply"),
+        ESfM_Data(EXTRINSICS | STRUCTURE));
+    }
+  }
+
+  // Remove outliers (max_angle, residual error)
+  const size_t pointcount_initial = _sfm_data.structure.size();
+  RemoveOutliers_PixelResidualError(_sfm_data, 4.0);
+  const size_t pointcount_pixelresidual_filter = _sfm_data.structure.size();
+  RemoveOutliers_AngleError(_sfm_data, 2.0);
+  const size_t pointcount_angular_filter = _sfm_data.structure.size();
+  std::cout << "Outlier removal (remaining #points):\n"
+    << "\t initial structure size #3DPoints: " << pointcount_initial << "\n"
+    << "\t\t pixel residual filter  #3DPoints: " << pointcount_pixelresidual_filter << "\n"
+    << "\t\t angular filter         #3DPoints: " << pointcount_angular_filter << std::endl;
+
+  if (!_sLoggingFile.empty())
+  {
+    Save(_sfm_data,
+      stlplus::create_filespec(stlplus::folder_part(_sLoggingFile), "structure_03_outlier_removed", "ply"),
+      ESfM_Data(EXTRINSICS | STRUCTURE));
+  }
+
+  // Check that poses & intrinsic cover some measures (after outlier removal)
+  const IndexT minPointPerPose = 12; // 6 min
+  const IndexT minTrackLenght = 3; // 2 min
+  if (eraseUnstablePosesAndObservations(_sfm_data, minPointPerPose, minTrackLenght))
+  {
+    // TODO: must ensure that track graph is producing a single connected component
+
+    const size_t pointcount_cleaning = _sfm_data.structure.size();
+    std::cout << "Point_cloud cleaning:\n"
+      << "\t #3DPoints: " << pointcount_cleaning << "\n";
+
+    b_BA_Status = bundle_adjustment_obj.Adjust(_sfm_data, true, true, !_bFixedIntrinsics);
+    if (b_BA_Status && !_sLoggingFile.empty())
+    {
+      Save(_sfm_data,
+        stlplus::create_filespec(stlplus::folder_part(_sLoggingFile), "structure_04_unstable_removed", "ply"),
+        ESfM_Data(EXTRINSICS | STRUCTURE));
+    }
+  }
+
+  return b_BA_Status;
 }
 
 void ReconstructionEngine_RelativeMotions_RigidRig::Compute_Relative_Rotations

@@ -81,11 +81,11 @@ protected:
   bool Compute_Global_Translations
   (
     const Hash_Map<IndexT, Mat3> & global_rotations,
-    matching::PairWiseMatches & tripletWise_matches  
+    matching::PairWiseMatches & tripletWise_matches
   );
 
   /// Compute the initial structure of the scene
-  bool Compute_Initial_Structure();
+  bool Compute_Initial_Structure(matching::PairWiseMatches & tripletWise_matches);
 
   // Adjust the scene (& remove outliers)
   bool Adjust();

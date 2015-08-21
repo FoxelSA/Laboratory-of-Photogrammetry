@@ -422,7 +422,7 @@ void GlobalSfMRig_Translation_AveragingSolver::ComputePutativeTranslation_EdgesC
     bool bVerbose = false;
 
     #ifdef OPENMVG_USE_OPENMP
-    #pragma omp parallel for schedule(dynamic)
+      #pragma omp parallel for schedule(dynamic)
     #endif
     for (int k = 0; k < vec_edges.size(); ++k)
     {
@@ -459,7 +459,7 @@ void GlobalSfMRig_Translation_AveragingSolver::ComputePutativeTranslation_EdgesC
       {
         vec_commonTracksPerTriplets.push_back(map_tracksPerTriplets[vec_possibleTriplets[i]]);
       }
-      //-- If current edge already computed continue
+      //-- If current edge is already computed continue
       if (m_mutexSet.count(edge))
         continue;
 
@@ -699,6 +699,9 @@ bool GlobalSfMRig_Translation_AveragingSolver::Estimate_T_triplet(
     {
       const size_t idx_view_I  = iterTrack_I->first;
       const size_t feat_I      = iterTrack_I->second;
+      const View * view_I = sfm_data.views.at(idx_view_I).get();
+      const IndexT pose_index_I = view_I->id_pose;
+
       submapTrack::const_iterator iterTrack_J = iterTrack_I;
       std::advance(iterTrack_J, 1);
 
@@ -706,6 +709,11 @@ bool GlobalSfMRig_Translation_AveragingSolver::Estimate_T_triplet(
       {
         const size_t idx_view_J  = iterTrack_J->first;
         const size_t feat_J      = iterTrack_J->second;
+        const View * view_J = sfm_data.views.at(idx_view_J).get();
+        const IndexT pose_index_J = view_J->id_pose;
+        if (pose_index_I == pose_index_J)
+          continue;
+
         submapTrack::const_iterator iterTrack_K = iterTrack_J;
         std::advance(iterTrack_K, 1);
 
@@ -713,21 +721,9 @@ bool GlobalSfMRig_Translation_AveragingSolver::Estimate_T_triplet(
         {
           const size_t idx_view_K  = iterTrack_K->first;
           const size_t feat_K      = iterTrack_K->second;
-
-          // initialize view structure
-          const View * view_I = sfm_data.views.at(idx_view_I).get();
-          const View * view_J = sfm_data.views.at(idx_view_J).get();
           const View * view_K = sfm_data.views.at(idx_view_K).get();
-
-          // initialize intrinsic group of cameras I and J
-          const IndexT intrinsic_index_I = view_I->id_intrinsic;
-          const IndexT intrinsic_index_J = view_J->id_intrinsic;
-          const IndexT intrinsic_index_K = view_K->id_intrinsic;
-
-          // initialize intrinsic group of cameras I and J
-          const IndexT pose_index_I = view_I->id_pose;
-          const IndexT pose_index_J = view_J->id_pose;
           const IndexT pose_index_K = view_K->id_pose;
+
           // if the images are in 3 different poses
           if (pose_index_I != pose_index_J && pose_index_J != pose_index_K && pose_index_I != pose_index_K)
           {
@@ -736,6 +732,11 @@ bool GlobalSfMRig_Translation_AveragingSolver::Estimate_T_triplet(
             bearing_I << normalized_features_provider->feats_per_view.at(idx_view_I).at(feat_I).coords().cast<double>();
             bearing_J << normalized_features_provider->feats_per_view.at(idx_view_J).at(feat_J).coords().cast<double>();
             bearing_K << normalized_features_provider->feats_per_view.at(idx_view_K).at(feat_K).coords().cast<double>();
+
+            // initialize intrinsic group of cameras I and J
+            const IndexT intrinsic_index_I = view_I->id_intrinsic;
+            const IndexT intrinsic_index_J = view_J->id_intrinsic;
+            const IndexT intrinsic_index_K = view_K->id_intrinsic;
 
             // initialize relative translation data container
             const std::vector<double> feat_cam_I = { bearing_I[0], bearing_I[1], intrinsic_index_I, map_poseId_to_contiguous.at(pose_index_I) };
@@ -747,7 +748,7 @@ bool GlobalSfMRig_Translation_AveragingSolver::Estimate_T_triplet(
             tmp[map_poseId_to_contiguous.at(pose_index_I)]= std::move(feat_cam_I);
             tmp[map_poseId_to_contiguous.at(pose_index_J)]= std::move(feat_cam_J);
             tmp[map_poseId_to_contiguous.at(pose_index_K)]= std::move(feat_cam_K);
-            featsAndRigIdPerTrack.push_back( std::move(tmp) );
+            featsAndRigIdPerTrack.emplace_back( std::move(tmp) );
             sampleToTrackId[ sampleToTrackId.size() ] = cpt;
           }
         }
