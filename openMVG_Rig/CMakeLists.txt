@@ -155,9 +155,7 @@ include_directories(
 # Library list
 # ==============================================================================
 set(OPENMVG_RIG_LIBRARY_LIST
-  ${LIBFASTCAL_LIBS}
   ${OPENMVG_LIBRARIES}
-  ${OPENGV_LIBS}
 )
 
 # ==============================================================================

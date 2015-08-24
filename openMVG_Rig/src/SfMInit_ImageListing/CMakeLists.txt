@@ -45,7 +45,7 @@ add_executable(openMVGRig_SfMInit_ImageListing
   main.cpp)
 
 add_dependencies(openMVGRig_SfMInit_ImageListing libfastcal)
-target_link_libraries(openMVGRig_SfMInit_ImageListing ${OPENMVG_RIG_LIBRARY_LIST})
+target_link_libraries(openMVGRig_SfMInit_ImageListing libfastcal ${OPENMVG_RIG_LIBRARY_LIST})
 
 set(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/software)
 
