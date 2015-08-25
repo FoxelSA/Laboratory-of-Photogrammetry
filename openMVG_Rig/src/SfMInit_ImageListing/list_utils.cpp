@@ -598,8 +598,10 @@ bool computeInstrinsicPerImages(
   bool      bKeepChannel  = false;
 
   // do a parallel loop to improve CPU TIME
-  #pragma omp parallel firstprivate(iter_image, splitted_name, timestamp, sensor_index, i, bKeepChannel, sImageFilename )
-  #pragma omp for schedule(dynamic)
+  #ifdef OPENMVG_USE_OPENMP
+    #pragma omp parallel firstprivate(iter_image, splitted_name, timestamp, sensor_index, i, bKeepChannel, sImageFilename )
+    #pragma omp for schedule(dynamic)
+  #endif
   for ( idx = 0; idx < vec_image.size(); ++idx)
   {
       //advance iterator
@@ -624,7 +626,9 @@ bool computeInstrinsicPerImages(
           // now load image information and keep channel index and timestamp
           timestamp = splitted_name[0];
 
-          #pragma omp critical
+          #ifdef OPENMVG_USE_OPENMP
+            #pragma omp critical
+          #endif
           {
               // update min timestamp
               if( minTimestamp.empty() )
@@ -666,7 +670,9 @@ bool computeInstrinsicPerImages(
           // export only kept channel
           if( bKeepChannel )
           {
-              #pragma omp critical
+              #ifdef OPENMVG_USE_OPENMP
+                #pragma omp critical
+              #endif
               {
                   // insert timestamp in the map
                   ret = mapRigPerImage.insert ( std::pair<std::string, li_Size_t>(timestamp, mapRigPerImage.size()) );
@@ -692,7 +698,9 @@ bool computeInstrinsicPerImages(
                   bUseRigidRig);
 
               //export info
-              #pragma omp critical
+              #ifdef OPENMVG_USE_OPENMP
+                #pragma omp critical
+              #endif
               {
                   camAndIntrinsics[*iter_image] = camInfo;
               }
@@ -700,7 +708,9 @@ bool computeInstrinsicPerImages(
           };
 
           //update progress bar
-          #pragma omp critical
+          #ifdef OPENMVG_USE_OPENMP
+            #pragma omp critical
+          #endif
           {
               ++my_progress_bar_image;
           }
