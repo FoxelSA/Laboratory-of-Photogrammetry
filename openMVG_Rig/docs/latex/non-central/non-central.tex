@@ -10,6 +10,8 @@
 \usepackage{url}
 \usepackage{float, graphicx}
 \usepackage[sectionbib]{chapterbib}
+\usepackage{hyperref}
+\hypersetup{colorlinks=false, hidelinks}
 
 \author{ St\'ephane Flotron, Pierre Moulon }
 \title{\textbf{A new Global Pipeline solving the non-central camera SfM}}
@@ -49,8 +51,8 @@
    \end{equation}
    where $\0$ is the origin of $\R^3$.
    
-   \paragraph{}We are now interested us to intersection of lines represented in Plücker coordinates frame.
-   Let $L_1 : (\d_1, \m_1)$ and $L_2 : (\d_2, \m_2)$ two lines of $\R^3$ represented by Plücker
+   \paragraph{}We are now interested us to intersection of lines represented in Plücker coordinate frame.
+   Let $L_1 : (\d_1, \m_1)$ and $L_2 : (\d_2, \m_2)$ be two lines of $\R^3$ represented by Plücker
    line coordinates. $L_1$ intersect $L_2$ if and only if $L_1$ and $L_2$ are coplanar. In terms of Plücker 
    coordinates, this condition is the following :
    \begin{equation}
@@ -59,7 +61,7 @@
    \end{equation}
 
    \subsubsection*{Remark}
-    In the case where $\x$ and $\y$ belongs to $\P^3$, the above definition of $\d$ and $\m$ doest not hold anymore.
+    In the case where $\x$ and $\y$ belongs to $\P^3$ (the projective space of dimension 3), the above definition of $\d$ and $\m$ does not hold anymore.
     Let us defined $p_{ij}$ as 
     \begin{equation*}
         p_{ij} = \left| 
@@ -76,7 +78,7 @@
     Taking $\x = (1, x_1, x_2, x_3)$, $\y = (1, y_1, y_2, y_3)$ and using the above definition, 
     we recover $\d$ and $\m$ defined by relation \eqref{dandm}.
     
-    \subsubsection{Rigid transformation of line represented by Plücker coordinates}
+    \subsubsection{Rigid transformation of lines represented by Plücker coordinates}
     
     Let $\x$ and $\y$ be two vectors of $\R^3$ defining a line $L$. Here, we represent $L$ using Plücker line
     coordinates, $L : (m,d)$. We apply to $L$ the rigid transformation $f(\X) = R( \X-\t), \ \forall \X \in \R^3$, 
@@ -103,21 +105,21 @@
        \label{plucker-transform}
         \d' = R\d \mbox{   and   } \m' = R\m - R ( \t \wedge \d ).
     \end{equation}
-    The relation \eqref{plucker-transform} will be very useful to derive the generalized epipolar constraint.
+    The relation \eqref{plucker-transform} will be useful to derive the generalized epipolar constraint.
     
     \subsection{The generalized epipolar camera model}
 
-    Let $L_1$ and $L_2$ be rays related to the same 3D point seen by two cameras, respectively camera 1 and camera 2. We suppose that the Plücker line
+    Let $L_1$ and $L_2$ be the rays related to the same 3D point seen by two cameras, respectively camera 1 and camera 2. We suppose that the Plücker line
     representation of $L_1$ and $L_2$ are known and denoted by
     \begin{equation*}
          L_1 : (\d_1, \m_1) \mbox{   and   } L_2 : (\d_2, \m_2 ).
     \end{equation*}
-    We equally assume that $L_1$ in represented in camera 1 coordinate frame and that $L_2$ in represented in camera 2 coordinate frame.
+    We assume that $L_1$ is represented in camera 1 coordinate frame and that $L_2$ is represented in camera 2 coordinate frame.
     Without loss of generality, we can assume that camera 1 has pose $(\I_3 | \0)$ and that camera 2 has pose $(R, \t)$, where $R$ the orientation of
-    the second camera with respect to the first and $\t$ the translation of second camera if camera 1 coordinate frame. 
+    the second camera with respect to the first and $\t$ the translation of second camera in camera 1 coordinate frame. 
     Denoting by $\X$ a point in camera one coordinate frame, it could be expressed in camera 2 coordinate frame by
     $$ \x_{cam}^2 = R\x_{cam}^1 + \t.$$
-    Therefore, the coordinate of camera two expressed in camera one coordinate frame are 
+    Therefore, $\x_2^{cam}$ expressed in camera one coordinate frame is given by the following relation: 
     $
         \x_{cam}^1 = R^T( \x_{cam}^2 - \t). 
     $
@@ -134,7 +136,7 @@
         \label{ray intersection}
         \m_2^T R \d_1 + \d_2^T [\t]_{\times} R \d_1 + \d_2^T R \m_1 = 0.
     \end{equation}
-    Writing equation \eqref{ray intersection} in a matrix product, we obtain the following expression
+    Writing equation \eqref{ray intersection} into a matrix product, we obtain the following expression
     \begin{equation}
         \label{generalized epipolar}
         (\d_2^T\ \m_2^T ) \left[ 
@@ -154,7 +156,7 @@
     which the generalized epipolar condition. Let us remark that if we consider central camera, the momentums $\m_1$ and $\m_2$
     are equal to $\0$ because the rays passes through the origin. Then relation \eqref{generalized epipolar} reduces to
     $$ \d_2^T [\t]_{\times} R \d_1 = 0$$
-    which is nothing else than the classical epipolar condition. Therefore \eqref{generalized epipolar} is really
+    which is nothing else than the classical epipolar condition. Therefore \eqref{generalized epipolar} is
     a generalization of the epipolar condition.
     
    \section{Relative Rotation Estimation}
@@ -169,7 +171,7 @@
    \subsection{Parametric model (reduced trifocal tensor)} 
    We assume here that the tracks between the poses are know, i.e that correspondences between the sub cameras
    of the camera rigs are known. The tracks are assumed to be of length at least 3, so that the corresponding 3D point is
-   seem from at least three poses. The method that will be presented hereafter is base on the one developed by Pierre Moulon
+   seem from at least three poses. The method presented hereafter is based on the one developed by Pierre Moulon
    (see \cite{moulon-tel-00996935} chapter 6, section 6.2.3, p.129 for the original method). Following \cite{moulon-tel-00996935}, 
    we define the interpose similarity measure as the re-projection error defined by 
     \begin{equation}
@@ -183,8 +185,8 @@
     \end{equation}
     where
     \begin{itemize}
-        \item[$x_j^{c,i}$] is the pixel of sub-camera $c$ of pose $i$ corresponding to 3D point $X_j$ 
-        \item[$X_j$] is a 3D,
+        \item[$x_j^{c,i}$] is the pixel of sub-camera $c$ of pose $i$ corresponding to the 3D point $X_j$ 
+        \item[$X_j$] is a 3D point,
         \item[$R_c$] is the relative orientation of the sub-camera $c$ in the camera rig referential frame,
         \item[$R_i$] is the orientation of pose $i$,
         \item[$\t_i$] is the translation of pose $i$,
@@ -212,7 +214,7 @@
    about the mathematical basis of the model, we refer us to \cite{moulon-tel-00996935}.
    
    \subsection{Note}
-   The constraint $\rho(\t_i, X_j) \leq \gamma$ is equivalent to 
+   Denoting by $R^k$ the $k$-th row of the matrix $R$, The constraint $\rho(\t_i, X_j) \leq \gamma$ is equivalent to 
    \begin{equation*}
      \left\{
          \begin{aligned}
@@ -223,7 +225,7 @@
          \end{aligned}
        \right\}, \\ \forall k \in {1,2}.
    \end{equation*}
-   Because $R_c$ et $\t_c$ are known from calibration, the previous problem is linear in $R_i$ and $\t_i$.
+   Because $R_c$ et $\t_c$ are known from calibration, the previous problem is linear in $X_j$ and $\t_i$.
    
    \section{Conclusions}
    
