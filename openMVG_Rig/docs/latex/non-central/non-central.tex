@@ -11,7 +11,7 @@
 \usepackage{float, graphicx}
 \usepackage[sectionbib]{chapterbib}
 
-\author{ St\'ephane Flotron }
+\author{ St\'ephane Flotron, Pierre Moulon }
 \title{\textbf{A new Global Pipeline solving the non-central camera SfM}}
 
 \renewcommand{\tilde}{\widetilde}
@@ -37,11 +37,11 @@
    \begin{equation*}
        \d = \y-\x.
    \end{equation*}
-   Then, The cartesian representation of the line $L$ is 
+   Then, The Cartesian representation of the line $L$ is 
    \begin{equation*}
        L : \x + \alpha \d, \ \alpha \in \R.
    \end{equation*}
-   This representation of the line does not allow the use of homogenuous coordinates. Hence, a solution is to use Plücker
+   This representation of the line does not allow the use of homogeneous coordinates. Hence, a solution is to use Plücker
    line representation of $L$, $L : (\d,\m)$, where $\d$ and $\m$ are two vectors of $\R^3$ defined as :
    \begin{equation}
         \label{dandm}
@@ -49,12 +49,12 @@
    \end{equation}
    where $\0$ is the origin of $\R^3$.
    
-   \paragraph{}We now interess us to intersection of lines represented in Plücker coordinates frame.
+   \paragraph{}We are now interested us to intersection of lines represented in Plücker coordinates frame.
    Let $L_1 : (\d_1, \m_1)$ and $L_2 : (\d_2, \m_2)$ two lines of $\R^3$ represented by Plücker
    line coordinates. $L_1$ intersect $L_2$ if and only if $L_1$ and $L_2$ are coplanar. In terms of Plücker 
    coordinates, this condition is the following :
    \begin{equation}
-       \label{coplanarity condition}
+       \label{co-planarity condition}
        L_1 \cap L_2 \neq \emptyset \iff \d_1 \cdot \m_2 + \d_2 \cdot \m_1 = 0.
    \end{equation}
 
@@ -98,7 +98,7 @@
             & = & R( \x \wedge \y) - R( \t \wedge (\y -\x) \\
             & = & R \m - R ( \t \wedge \d ).
     \end{eqnarray*}
-    Hence, for the rigid tranformation $f$ defined by $f(\X) = R(\X-\t)$, we have
+    Hence, for the rigid transformation $f$ defined by $f(\X) = R(\X-\t)$, we have
     \begin{equation}
        \label{plucker-transform}
         \d' = R\d \mbox{   and   } \m' = R\m - R ( \t \wedge \d ).
@@ -115,7 +115,7 @@
     We equally assume that $L_1$ in represented in camera 1 coordinate frame and that $L_2$ in represented in camera 2 coordinate frame.
     Without loss of generality, we can assume that camera 1 has pose $(\I_3 | \0)$ and that camera 2 has pose $(R, \t)$, where $R$ the orientation of
     the second camera with respect to the first and $\t$ the translation of second camera if camera 1 coordinate frame. 
-    Denoting by $\X$ a point in camera one coordiante frame, it could be expressed in camera 2 coordinate frame by
+    Denoting by $\X$ a point in camera one coordinate frame, it could be expressed in camera 2 coordinate frame by
     $$ \x_{cam}^2 = R\x_{cam}^1 + \t.$$
     Therefore, the coordinate of camera two expressed in camera one coordinate frame are 
     $
@@ -125,7 +125,7 @@
     \begin{equation}
         L^2 : (R^T \d_2, R^T \m_2 - R^T (\t \wedge \d_2).
     \end{equation}
-    Since $L_1$ and $L_2$ are seeing the same 3D point $\X$, the lines must intersect. From condition \eqref{coplanarity condition}, we have
+    Since $L_1$ and $L_2$ are seeing the same 3D point $\X$, the lines must intersect. From condition \eqref{co-planarity condition}, we have
     \begin{equation*}
         \d_1^T R^T \m_2 - \d_1^T R^T (\t \wedge \d_2 ) + \m_1^T R^T \d_2 = 0,  
     \end{equation*}
@@ -134,7 +134,7 @@
         \label{ray intersection}
         \m_2^T R \d_1 + \d_2^T [\t]_{\times} R \d_1 + \d_2^T R \m_1 = 0.
     \end{equation}
-    Writing equation \eqref{ray intersection} in a matricial form, we obtain the following expression
+    Writing equation \eqref{ray intersection} in a matrix product, we obtain the following expression
     \begin{equation}
         \label{generalized epipolar}
         (\d_2^T\ \m_2^T ) \left[ 
@@ -168,10 +168,10 @@
    
    \subsection{Parametric model (reduced trifocal tensor)} 
    We assume here that the tracks between the poses are know, i.e that correspondences between the sub cameras
-   of the camera rigs are known. The tracks are assumed to be of lenght at least 3, so that the corresponding 3D point is
-   seem from at least three poses. The method that will be presented hereafter is base on the one developped by Pierre Moulon
+   of the camera rigs are known. The tracks are assumed to be of length at least 3, so that the corresponding 3D point is
+   seem from at least three poses. The method that will be presented hereafter is base on the one developed by Pierre Moulon
    (see \cite{moulon-tel-00996935} chapter 6, section 6.2.3, p.129 for the original method). Following \cite{moulon-tel-00996935}, 
-   we define the interpose similarity measure as the reprojection error defined by 
+   we define the interpose similarity measure as the re-projection error defined by 
     \begin{equation}
         \label{similarity}
         \begin{aligned}
@@ -183,12 +183,12 @@
     \end{equation}
     where
     \begin{itemize}
-        \item[$x_j^{c,i}$] is the pixel of subcamera $c$ of pose $i$ corresponding to 3D point $X_j$ 
+        \item[$x_j^{c,i}$] is the pixel of sub-camera $c$ of pose $i$ corresponding to 3D point $X_j$ 
         \item[$X_j$] is a 3D,
-        \item[$R_c$] is the relative orientation of the subcamera $c$ in the camera rig referential frame,
+        \item[$R_c$] is the relative orientation of the sub-camera $c$ in the camera rig referential frame,
         \item[$R_i$] is the orientation of pose $i$,
         \item[$\t_i$] is the translation of pose $i$,
-        \item[$\t_c$] is the translation of subcamera $c$ in the camera rig referential frame.
+        \item[$\t_c$] is the translation of sub-camera $c$ in the camera rig referential frame.
     \end{itemize}
    
    Le be $(I,J,K)$ a triplet of poses such that the composition of the relative rotation is the 
@@ -202,13 +202,13 @@
        \begin{aligned}
            \mbox{minimize}_{\{\t_i\}_i, \{X_j\}_j}  && \quad  & \gamma &&& \\
            &&&&&\\
-           \mbox{tel que} && \ & \rho(\t_i, X_j) \leq \gamma && \forall i, j \in \{1,2,3,4\} \\
+           \mbox{such that} && \ & \rho(\t_i, X_j) \leq \gamma && \forall i, j \in \{1,2,3,4\} \\
             & && (R_c R_i X_j + R_c \t_i + \t_c)^3 \geq 1 & \ & \forall i,j \\
             &&& \t_1 = (0,0,0) &&
        \end{aligned}
    \end{equation}
    Only 4 3D-points are needed to estimate the relative translations between the three poses. 
-   The model would be estimated using AC-RANSAC with a fixed threshold $\gamma=2.0$ pixels. For more information
+   The model would be estimated using AC-RANSAC with an upper bound threshold of $\gamma=2.0$ pixels. For more information
    about the mathematical basis of the model, we refer us to \cite{moulon-tel-00996935}.
    
    \subsection{Note}
@@ -228,7 +228,7 @@
    \section{Conclusions}
    
 % ================================================================
-%  Bibliographie
+%  Bibliography
 % ================================================================
 
   \bibliography{biblio}
