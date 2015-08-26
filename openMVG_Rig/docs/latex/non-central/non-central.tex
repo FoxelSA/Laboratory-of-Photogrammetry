@@ -230,10 +230,10 @@
    
    \subsection{3D points distance minization}
    The previous formulation seems quite fine, but from the representation of the reprojection error, we
-   are still in a central camera case with three camera, even if we consider the subposes in the formulation
-   of model \eqref{parametric model}
+   are still in a central camera case with three cameras, even if we consider the subposes in the formulation
+   of model \eqref{parametric model}.
    
-   \paragraph{} In order to avoid this representation, we present now a modelisation in which we are 
+   \paragraph{} In order to avoid this problem, we present now a modelisation in which we are 
    in a global referential frame, which seems more suitable for the representation of the scene with non 
    central cameras. Let $\X$ be a 3D point seen from camera $c$ with subpose ($R_c, C_c$) in a camera
    rig of pose $(R_r, C_r)$. Moreover, let us denote the corresponding bearing vector as $\b$. Then the relation
@@ -241,7 +241,7 @@
    \begin{equation*}
       \alpha \b = R_c R_r \X + R_c \t_r + \t_c 
    \end{equation*}
-   where $\alpha$ is the depth of the point $\X$ in the $c$ camera referential frame, $\t_c = -R_c C_c$ and $\t_r = -R_r C_r$. 
+   where $\alpha$ is the depth of the point $\X$ in the camera $c$ referential frame, $\t_c = -R_c C_c$ and $\t_r = -R_r C_r$. 
    Inverting the previous relation leads to the following equation 
    \begin{equation*}
        \X = \alpha R_r^T R_c^T  \b + R_r^T C_c + C_r.
@@ -255,7 +255,7 @@
      \X_l & = & \X_{l, i} = \alpha_l^i R_i^T R_{k,i}^T  \b_{l, i} + R_i^T C_{k,i} + C_i \\
           & = & \X_{l, j} = \alpha_l^j R_j^T R_{k,j}^T  \b_{l, j} + R_j^T C_{k,j} + C_j.
    \end{eqnarray*}
-   However, in practice, the bearing vectors $\b_{l,i}$ and $\b_{l,j}$ are noisy so that the above relation is never 
+   However, in practice, the bearing vectors $\b_{l,i}$ and $\b_{l,j}$ are noisy so that the above equality is never 
    fulfilled. Nevertheless, we can ensure that the distance between $\X_{l,i}$ and $\X_{l,j}$ is 
    less than a given threshold $\sigma$. In fact we would ensure that 
    \begin{equation*}
@@ -265,41 +265,45 @@
    identity matrix, i.e.
    $$ R_{IJ} R_{JK} R_{KI} = I_3.$$ 
    where $R_{ij}$ is the relative orientation of rig $j$ in the pose $i$.
-   Now we could present the scheme based on distance between. We now assume that we have 4 points $\X_l$, $l=0,\dots,3$ that 
-   are seen in three poses. We are looking for depths $\alpha_{l,i}$ and poses center that minimize the following problem:
+   We could now present the scheme based on distance minization. We assume that for each of the three poses we know the bearings vectors 
+   corresponding to a 3D points $\X_l$, $l=0,\dots,3$. In pratice, this means that 4 tracks of length greater or equal 3 are known, and that the tracks
+   are shared by the three poses $I, J$ and $K$. Knowing that, 
+   we are looking for depths $\alpha_{l,i}$ and poses center that minimize the following problem:
    \begin{equation*}
        \begin{aligned}
           \underset{\{C_i\}_i, \{\alpha_l^i\}_{l,i}}{ \mbox{minimize}}  && \quad  & \sigma &&& \\
            &&&&&\\
            \mbox{such that} && \ & \| \X_{l,i} - \X_{l,j}\|_{\infty} \leq \sigma && \\
-           &&& \forall l \in \{0,1,2,3\}, \forall i \neq j \in \{1,2,3\} \\
+           &&& \forall l \in \{0,1,2,3\}, \forall i \neq j \in \{I,J,K\} \\
        \end{aligned}
    \end{equation*}
-   However, in pratice, we need the relative translation, so we consider the following problem:
+   However, in pratice, we need the relative translations, so we consider the following equivalent problem:
    \begin{equation}
        \label{distance translation model}
        \begin{aligned}
           \underset{\{\t_i\}_i, \{\alpha_l^i\}_{l,i}}{ \mbox{minimize}}  && \quad  & \sigma &&& \\
            &&&&&\\
            \mbox{such that} && \ & \| \overline {\X}_{l,i} - \overline {\X}_{l,j}\|_{\infty} \leq \sigma && \\
-           &&& \forall l \in \{0,1,2,3\}, \forall i \neq j \in \{1,2,3\} \\
+           &&& \forall l \in \{0,1,2,3\}, \forall i \neq j \in \{I,J,K\} \\
        \end{aligned}
    \end{equation}
    where 
    \begin{equation*}
        \overline{\X}_{l, i} = \alpha_l^i R_i^T R_{k,i}^T  \b_{l, i} + R_i^T C_{k,i} -R_i^T \t_i.
    \end{equation*}
+   The model would be estimated using AC-RANSAC with an upper bound threshold $\sigma=0.01$ meters, because 
+   we made the implicit assumption that the centers $C_k$ of the cameras of the rig structure are in meters.
    
    \subsubsection*{Remark}
-   Denoting by $1_3$ the vector $(1,1,1)^T$, the equation $ \| \overline {\X}_{l,i} - \overline {\X}_{l,j}\|_{\infty} \leq \sigma $ could be easily 
-   rewritten as 
+   Denoting by $1_3$ the vector $(1,1,1)^T$, the equation $ \| \overline {\X}_{l,i} - \overline {\X}_{l,j}\|_{\infty} \leq \sigma $ could easily 
+   be rewritten as 
    \begin{equation}
      \label{expanded distance}
      \begin{aligned}
        & -\sigma 1_3 -R_i^T C_{k,i} + R_j^T C_{k,j} & \leq & 
           \ \alpha_i^l R_i^T R_{k,i}^T \b_{l,i} - \alpha_j^l R_j^T R_{k,j}^T \b_{l,j}
              -R_i^T \t_i + R_j^T \t_j \\
-       && \leq & -\sigma 1_3 -R_i^T C_{k,i} + R_j^T C_{k,j}.
+       && \leq & \sigma 1_3 -R_i^T C_{k,i} + R_j^T C_{k,j}.
      \end{aligned}
    \end{equation}
    The equation \eqref{expanded distance} could be split into two inqualities which are easily implemented in linear programming solver such 
