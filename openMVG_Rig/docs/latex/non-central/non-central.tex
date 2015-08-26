@@ -19,6 +19,7 @@
 \renewcommand{\tilde}{\widetilde}
 \renewcommand{\t}{\mathbf{t}}
 \renewcommand{\d}{\mathbf{d}}
+\renewcommand{\b}{\mathbf{b}}
 \newcommand{\m}{\mathbf{m}}
 \newcommand{\x}{\mathbf{x}}
 \newcommand{\X}{\mathbf{X}}
@@ -66,8 +67,8 @@
     \begin{equation*}
         p_{ij} = \left| 
              \begin{array}{cc}
-                x_i & y_i \\
-                x_j & y_j 
+                \x_i & y_i \\
+                \x_j & y_j 
             \end{array}
         \right|.
     \end{equation*}
@@ -75,7 +76,7 @@
     \begin{equation}
            \d^T = (p_{01},\ p_{02},\ p_{03}) \mbox{ and } \m^T = (p_{23},\ p_{31},\ p_{12}). 
     \end{equation}
-    Taking $\x = (1, x_1, x_2, x_3)$, $\y = (1, y_1, y_2, y_3)$ and using the above definition, 
+    Taking $\x = (1, \x_1, \x_2, \x_3)$, $\y = (1, y_1, y_2, y_3)$ and using the above definition, 
     we recover $\d$ and $\m$ defined by relation \eqref{dandm}.
     
     \subsubsection{Rigid transformation of lines represented by Plücker coordinates}
@@ -177,16 +178,16 @@
     \begin{equation}
         \label{similarity}
         \begin{aligned}
-        & \rho(\t_i, X_j) && = \left \| \left (
-                              x_j^{c,i}(1) - \frac{(R_c R_i X_j + R_c \t_i + \t_c)^1}{(R_c R_i X_j + R_c \t_i + \t_c)^3}, \right. \right. \\
-                           &&& \qquad \qquad \qquad  \left. \left. x_j^{c,i}(2) - \frac{(R_c R_i X_j + R_c \t_i + \t_c)^2}{(R_c R_i X_j + R_c \t_i + \t_c)^3}
+        & \rho(\t_i, \X_j) && = \left \| \left (
+                              \x_j^{c,i}(1) - \frac{(R_c R_i \X_j + R_c \t_i + \t_c)^1}{(R_c R_i \X_j + R_c \t_i + \t_c)^3}, \right. \right. \\
+                           &&& \qquad \qquad \qquad  \left. \left. \x_j^{c,i}(2) - \frac{(R_c R_i \X_j + R_c \t_i + \t_c)^2}{(R_c R_i \X_j + R_c \t_i + \t_c)^3}
                           \right) \right\|_\infty
         \end{aligned}
     \end{equation}
     where
     \begin{itemize}
-        \item[$x_j^{c,i}$] is the pixel of sub-camera $c$ of pose $i$ corresponding to the 3D point $X_j$ 
-        \item[$X_j$] is a 3D point,
+        \item[$\x_j^{c,i}$] is the pixel of sub-camera $c$ of pose $i$ corresponding to the 3D point $\X_j$ 
+        \item[$\X_j$] is a 3D point,
         \item[$R_c$] is the relative orientation of the sub-camera $c$ in the camera rig referential frame,
         \item[$R_i$] is the orientation of pose $i$,
         \item[$\t_i$] is the translation of pose $i$,
@@ -202,10 +203,10 @@
    \begin{equation}
        \label{parametric model}
        \begin{aligned}
-           \mbox{minimize}_{\{\t_i\}_i, \{X_j\}_j}  && \quad  & \gamma &&& \\
+           \underset{\{\t_i\}_i, \{\X_j\}_j}{\mbox{minimize}}  && \quad  & \gamma &&& \\
            &&&&&\\
-           \mbox{such that} && \ & \rho(\t_i, X_j) \leq \gamma && \forall i, j \in \{1,2,3,4\} \\
-            & && (R_c R_i X_j + R_c \t_i + \t_c)^3 \geq 1 & \ & \forall i,j \\
+           \mbox{such that} && \ & \rho(\t_i, \X_j) \leq \gamma && \forall i, j \in \{1,2,3,4\} \\
+            & && (R_c R_i \X_j + R_c \t_i + \t_c)^3 \geq 1 & \ & \forall i,j \\
             &&& \t_1 = (0,0,0) &&
        \end{aligned}
    \end{equation}
@@ -213,20 +214,98 @@
    The model would be estimated using AC-RANSAC with an upper bound threshold of $\gamma=2.0$ pixels. For more information
    about the mathematical basis of the model, we refer us to \cite{moulon-tel-00996935}.
    
-   \subsection{Note}
-   Denoting by $R^k$ the $k$-th row of the matrix $R$, The constraint $\rho(\t_i, X_j) \leq \gamma$ is equivalent to 
+   \subsubsection*{Note}
+   Denoting by $R^k$ the $k$-th row of the matrix $R$, The constraint $\rho(\t_i, \X_j) \leq \gamma$ is equivalent to 
    \begin{equation*}
      \left\{
          \begin{aligned}
-            & X_j\left[ (R_cR_i)^k + (\gamma-x_j^{c,i}(k)) (R_cR_i)^3 \right] + \left[R_c^3(\gamma-x_j^{c,i}(k))+R_c^k\right]\t_i  \\
-            & \qquad \qquad + [\t_c^k + (\gamma-x_j^{c,i}(k))\t_c^3] \geq 0 \\
-            & X_j\left[ (R_cR_i)^k - (\gamma + x_j^{c,i}(k)) (R_cR_i)^3 \right] + \left[-R_c^3(\gamma+x_j^{c,i}(k))+R_c^k\right]\t_i  \\
-            & \qquad \qquad + [\t_c^k - (\gamma+x_j^{c,i}(k))\t_c^3] \leq 0 \\
+            & \X_j\left[ (R_cR_i)^k + (\gamma-\x_j^{c,i}(k)) (R_cR_i)^3 \right] + \left[R_c^3(\gamma-\x_j^{c,i}(k))+R_c^k\right]\t_i  \\
+            & \qquad \qquad + [\t_c^k + (\gamma-\x_j^{c,i}(k))\t_c^3] \geq 0 \\
+            & \X_j\left[ (R_cR_i)^k - (\gamma + \x_j^{c,i}(k)) (R_cR_i)^3 \right] + \left[-R_c^3(\gamma+\x_j^{c,i}(k))+R_c^k\right]\t_i  \\
+            & \qquad \qquad + [\t_c^k - (\gamma+\x_j^{c,i}(k))\t_c^3] \leq 0 \\
          \end{aligned}
        \right\}, \\ \forall k \in {1,2}.
    \end{equation*}
-   Because $R_c$ et $\t_c$ are known from calibration, the previous problem is linear in $X_j$ and $\t_i$.
+   Because $R_c$ et $\t_c$ are known from calibration, the previous problem is linear in $\X_j$ and $\t_i$.
    
+   \subsection{3D points distance minization}
+   The previous formulation seems quite fine, but from the representation of the reprojection error, we
+   are still in a central camera case with three camera, even if we consider the subposes in the formulation
+   of model \eqref{parametric model}
+   
+   \paragraph{} In order to avoid this representation, we present now a modelisation in which we are 
+   in a global referential frame, which seems more suitable for the representation of the scene with non 
+   central cameras. Let $\X$ be a 3D point seen from camera $c$ with subpose ($R_c, C_c$) in a camera
+   rig of pose $(R_r, C_r)$. Moreover, let us denote the corresponding bearing vector as $\b$. Then the relation
+   between $\b$ and $\X$ is
+   \begin{equation*}
+      \alpha \b = R_c R_r \X + R_c \t_r + \t_c 
+   \end{equation*}
+   where $\alpha$ is the depth of the point $\X$ in the $c$ camera referential frame, $\t_c = -R_c C_c$ and $\t_r = -R_r C_r$. 
+   Inverting the previous relation leads to the following equation 
+   \begin{equation*}
+       \X = \alpha R_r^T R_c^T  \b + R_r^T C_c + C_r.
+   \end{equation*}
+   Let $\X_l$, $l \in \mathbb{N}$ a 3D points issued from pose $i$ and sub-camera $k$. Then 
+   \begin{equation*}
+      \X_l = \alpha_l^i R_i^T R_k^T  \b_l + R_i^T C_{k} + C_i
+   \end{equation*}
+   and if $\X_l$ is seen from two poses $i$ and $j$, we have
+   \begin{eqnarray*}
+     \X_l & = & \X_{l, i} = \alpha_l^i R_i^T R_{k,i}^T  \b_{l, i} + R_i^T C_{k,i} + C_i \\
+          & = & \X_{l, j} = \alpha_l^j R_j^T R_{k,j}^T  \b_{l, j} + R_j^T C_{k,j} + C_j.
+   \end{eqnarray*}
+   However, in practice, the bearing vectors $\b_{l,i}$ and $\b_{l,j}$ are noisy so that the above relation is never 
+   fulfilled. Nevertheless, we can ensure that the distance between $\X_{l,i}$ and $\X_{l,j}$ is 
+   less than a given threshold $\sigma$. In fact we would ensure that 
+   \begin{equation}
+       \| \X_{l, i} -\X_{l, j} \|_{\infty} \leq \sigma.
+   \end{equation}
+   Le be $(I,J,K)$ a triplet of poses such that the composition of the relative rotation is the 
+   identity matrix, i.e.
+   $$ R_{IJ} R_{JK} R_{KI} = I_3.$$ 
+   where $R_{ij}$ is the relative orientation of rig $j$ in the pose $i$.
+   Now we could present the scheme based on distance between. We now assume that we have 4 points $\X_l$, $l=0,\dots,3$ that 
+   are seen in three poses. We are looking for depths $\alpha_{l,i}$ and poses center that minimize the following problem:
+   \begin{equation}
+       \label{distance model}
+       \begin{aligned}
+          \underset{\{C_i\}_i, \{\alpha_l^i\}_{l,i}}{ \mbox{minimize}}  && \quad  & \sigma &&& \\
+           &&&&&\\
+           \mbox{such that} && \ & \| \X_{l,i} - \X_{l,j}\|_{\infty} \leq \sigma && \\
+           &&& \forall l \in \{0,1,2,3\}, \forall i \neq j \in \{1,2,3\} \\
+       \end{aligned}
+   \end{equation}
+   However, in pratice, we need the relative translation, so we consider the following problem:
+      \begin{equation}
+       \label{distance translation model}
+       \begin{aligned}
+          \underset{\{\t_i\}_i, \{\alpha_l^i\}_{l,i}}{ \mbox{minimize}}  && \quad  & \sigma &&& \\
+           &&&&&\\
+           \mbox{such that} && \ & \| \overline {\X}_{l,i} - \overline {\X}_{l,j}\|_{\infty} \leq \sigma && \\
+           &&& \forall l \in \{0,1,2,3\}, \forall i \neq j \in \{1,2,3\} \\
+       \end{aligned}
+   \end{equation}
+   where 
+   \begin{equation}
+       \overline{\X}_{l, i} = \alpha_l^i R_i^T R_{k,i}^T  \b_{l, i} + R_i^T C_{k,i} -R_i^T \t_i.
+   \end{equation}
+   
+   \subsubsection*{Remark}
+   Denoting by $1_3$ the vector $(1,1,1)^T$, the equation $ \| \overline {\X}_{l,i} - \overline {\X}_{l,j}\|_{\infty} \leq \sigma $ could be easily 
+   rewritten as 
+   \begin{equation}
+     \label{expanded distance}
+     \begin{aligned}
+       & -\sigma 1_3 -R_i^T C_{k,i} + R_j^T C_{k,j} & \leq & 
+          \ \alpha_i^l R_i^T R_{k,i}^T \b_{l,i} - \alpha_j^l R_j^T R_{k,j}^T \b_{l,j}
+             -R_i^T \t_i + R_j^T \t_j \\
+       && \leq & -\sigma 1_3 -R_i^T C_{k,i} + R_j^T C_{k,j}.
+     \end{aligned}
+   \end{equation}
+   The equation \eqref{expanded distance} could be split into two inqualities wich are easily implemented in linear programming solver such 
+   as OSI-CLP.
+
    \section{Conclusions}
    
 % ================================================================
