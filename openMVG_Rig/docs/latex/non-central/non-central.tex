@@ -73,9 +73,9 @@
         \right|.
     \end{equation*}
     Then $\d$ and $\m$ are defined as
-    \begin{equation}
+    \begin{equation*}
            \d^T = (p_{01},\ p_{02},\ p_{03}) \mbox{ and } \m^T = (p_{23},\ p_{31},\ p_{12}). 
-    \end{equation}
+    \end{equation*}
     Taking $\x = (1, \x_1, \x_2, \x_3)$, $\y = (1, y_1, y_2, y_3)$ and using the above definition, 
     we recover $\d$ and $\m$ defined by relation \eqref{dandm}.
     
@@ -125,9 +125,9 @@
         \x_{cam}^1 = R^T( \x_{cam}^2 - \t). 
     $
     Hence, $L_2$ in camera one coordinate frame is given by :
-    \begin{equation}
+    \begin{equation*}
         L^2 : (R^T \d_2, R^T \m_2 - R^T (\t \wedge \d_2).
-    \end{equation}
+    \end{equation*}
     Since $L_1$ and $L_2$ are seeing the same 3D point $\X$, the lines must intersect. From condition \eqref{co-planarity condition}, we have
     \begin{equation*}
         \d_1^T R^T \m_2 - \d_1^T R^T (\t \wedge \d_2 ) + \m_1^T R^T \d_2 = 0,  
@@ -258,26 +258,25 @@
    However, in practice, the bearing vectors $\b_{l,i}$ and $\b_{l,j}$ are noisy so that the above relation is never 
    fulfilled. Nevertheless, we can ensure that the distance between $\X_{l,i}$ and $\X_{l,j}$ is 
    less than a given threshold $\sigma$. In fact we would ensure that 
-   \begin{equation}
+   \begin{equation*}
        \| \X_{l, i} -\X_{l, j} \|_{\infty} \leq \sigma.
-   \end{equation}
+   \end{equation*}
    Le be $(I,J,K)$ a triplet of poses such that the composition of the relative rotation is the 
    identity matrix, i.e.
    $$ R_{IJ} R_{JK} R_{KI} = I_3.$$ 
    where $R_{ij}$ is the relative orientation of rig $j$ in the pose $i$.
    Now we could present the scheme based on distance between. We now assume that we have 4 points $\X_l$, $l=0,\dots,3$ that 
    are seen in three poses. We are looking for depths $\alpha_{l,i}$ and poses center that minimize the following problem:
-   \begin{equation}
-       \label{distance model}
+   \begin{equation*}
        \begin{aligned}
           \underset{\{C_i\}_i, \{\alpha_l^i\}_{l,i}}{ \mbox{minimize}}  && \quad  & \sigma &&& \\
            &&&&&\\
            \mbox{such that} && \ & \| \X_{l,i} - \X_{l,j}\|_{\infty} \leq \sigma && \\
            &&& \forall l \in \{0,1,2,3\}, \forall i \neq j \in \{1,2,3\} \\
        \end{aligned}
-   \end{equation}
+   \end{equation*}
    However, in pratice, we need the relative translation, so we consider the following problem:
-      \begin{equation}
+   \begin{equation}
        \label{distance translation model}
        \begin{aligned}
           \underset{\{\t_i\}_i, \{\alpha_l^i\}_{l,i}}{ \mbox{minimize}}  && \quad  & \sigma &&& \\
@@ -287,9 +286,9 @@
        \end{aligned}
    \end{equation}
    where 
-   \begin{equation}
+   \begin{equation*}
        \overline{\X}_{l, i} = \alpha_l^i R_i^T R_{k,i}^T  \b_{l, i} + R_i^T C_{k,i} -R_i^T \t_i.
-   \end{equation}
+   \end{equation*}
    
    \subsubsection*{Remark}
    Denoting by $1_3$ the vector $(1,1,1)^T$, the equation $ \| \overline {\X}_{l,i} - \overline {\X}_{l,j}\|_{\infty} \leq \sigma $ could be easily 
@@ -303,7 +302,7 @@
        && \leq & -\sigma 1_3 -R_i^T C_{k,i} + R_j^T C_{k,j}.
      \end{aligned}
    \end{equation}
-   The equation \eqref{expanded distance} could be split into two inqualities wich are easily implemented in linear programming solver such 
+   The equation \eqref{expanded distance} could be split into two inqualities which are easily implemented in linear programming solver such 
    as OSI-CLP.
 
    \section{Conclusions}
