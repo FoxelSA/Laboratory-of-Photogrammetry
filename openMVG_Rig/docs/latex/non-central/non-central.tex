@@ -1,14 +1,11 @@
 \documentclass[a4paper, 10pt]{article}
 
-%\usepackage{../preambule}
 \usepackage[latin1]{inputenc}
-\usepackage[french]{babel}
 \usepackage{amsmath}
 \usepackage{amssymb}
 %\usepackage{bbm}
 \usepackage{lscape}
 \usepackage{inputenc}
-%\usepackage[refpage,french,noprefix]{nomencl}
 \usepackage{lmodern}
 \usepackage{url}
 \usepackage{float, graphicx}
@@ -159,19 +156,22 @@
     $$ \d_2^T [\t]_{\times} R \d_1 = 0$$
     which is nothing else than the classical epipolar condition. Therefore \eqref{generalized epipolar} is really
     a generalization of the epipolar condition.
+    
+   \section{Relative Rotation Estimation}
 
     
-    \section*{Estimation des translations inter-rigs}
-    
-       Dans le cadre de document, nous travaillons sur des rigs calibrés et nous supposons également que les rotations globales
-   $R_i$ entre les rigs sont connues. Nous désirons maintenant estimer les translations globales $\t_i$ entre les rigs.
+   \section{Relative translation Estimation}
    
-   \paragraph{} Nous supposons également connues des tracks entre les rigs, i.e. des correspondances entre des sous-caméras 
-   du rigs, et que ces tracks sont de longueurs 3 au minimum. Par cela, nous entendons que les point 3D doivent êtres vu par
-   un minimum d'au moins trois rigs. La méthode que nous allons présenter ici est basée sur celle développée par Pierre Moulon 
-   lors de sa thèse de doctorat. 
-    
-    Suivant les travaux de Pierre, nous définissons la mesure de similarité inter-rig par
+   During this section, we assume that the rotation $R_i$ of each pose $i$ is known. The aim of this section is to develop
+   a numerical scheme in order to estimation the relative translations $\t_{ij}$ between two poses. Once the are known, 
+   the relative translations could be merged using the approach of \cite{moulon-tel-00996935} in order to retrieve the global translations.
+   
+   \subsection{Parametric model (reduced trifocal tensor)} 
+   We assume here that the tracks between the poses are know, i.e that correspondences between the sub cameras
+   of the camera rigs are known. The tracks are assumed to be of lenght at least 3, so that the corresponding 3D point is
+   seem from at least three poses. The method that will be presented hereafter is base on the one developped by Pierre Moulon
+   (see \cite{moulon-tel-00996935} chapter 6, section 6.2.3, p.129 for the original method). Following \cite{moulon-tel-00996935}, 
+   we define the interpose similarity measure as the reprojection error defined by 
     \begin{equation}
         \label{similarity}
         \begin{aligned}
@@ -181,45 +181,58 @@
                           \right) \right\|_\infty
         \end{aligned}
     \end{equation}
-    où 
+    where
     \begin{itemize}
-        \item[$x_j^{c,i}$] est le pixel de la sous-caméra $c$ du rig $i$ correspondant au point $X_j$ 
-        \item[$X_j$] est un point 3D,
-        \item[$R_c$] est la rotation de la sous-caméra $c$ du rig $i$ voyant le point 3D $X_j$  (dans le réferentiel du rig),
-        \item[$R_i$] est la rotation globale du rig $i$,
-        \item[$\t_i$] est la translation globale du rig $i$,
-        \item[$\t_c$] est la translation de la sous-caméra $c$ du rig $i$ voyant le point 3D $X_j$ (dans le référentiel du rig).
+        \item[$x_j^{c,i}$] is the pixel of subcamera $c$ of pose $i$ corresponding to 3D point $X_j$ 
+        \item[$X_j$] is a 3D,
+        \item[$R_c$] is the relative orientation of the subcamera $c$ in the camera rig referential frame,
+        \item[$R_i$] is the orientation of pose $i$,
+        \item[$\t_i$] is the translation of pose $i$,
+        \item[$\t_c$] is the translation of subcamera $c$ in the camera rig referential frame.
     \end{itemize}
-
-   \subsection*{Modèle paramétrique (tenseurs trifocaux réduits)}
    
-   Nous considérons ici un triplet de rigs $(I,J,K)$. Le problème que l'on cherche à résoudre pour calculer les translations inter-rigs
-   $\t_1, \t_2= \t_{IJ}, \t_3 = \t_{IK}$ est alors 
+   Le be $(I,J,K)$ a triplet of poses such that the composition of the relative rotation is the 
+   identity matrix, i.e.
+   $$ R_{IJ} R_{JK} R_{KI} = I_3.$$ 
+   where $R_{ij}$ is the relative orientation of rig $j$ in the pose $i$. 
+   The problem we want to solve in order to estimate the relative translation
+   $\t_1 = \mathbf{0}, \t_2= \t_{IJ}, \t_3 = \t_{IK}$ between the poses $I, J$ and $K$ is 
    \begin{equation}
        \label{parametric model}
        \begin{aligned}
-           \mbox{minimiser}_{\{\t_i\}_i, \{X_j\}_j}  && \quad  & \gamma &&& \\
+           \mbox{minimize}_{\{\t_i\}_i, \{X_j\}_j}  && \quad  & \gamma &&& \\
            &&&&&\\
            \mbox{tel que} && \ & \rho(\t_i, X_j) \leq \gamma && \forall i, j \in \{1,2,3,4\} \\
             & && (R_c R_i X_j + R_c \t_i + \t_c)^3 \geq 1 & \ & \forall i,j \\
             &&& \t_1 = (0,0,0) &&
        \end{aligned}
    \end{equation}
-   Il suffit de quatre points pour estimer le modèle. L'estimation du modèle sera faite avec AC-RANSAC pour un seuil fixe de $\gamma=0.5$ pixels.
-   Pour plus d'informations sur ce modèle, nous nous référons à la thèse de Pierre.
+   Only 4 3D-points are needed to estimate the relative translations between the three poses. 
+   The model would be estimated using AC-RANSAC with a fixed threshold $\gamma=2.0$ pixels. For more information
+   about the mathematical basis of the model, we refer us to \cite{moulon-tel-00996935}.
    
-   \subsection*{Note}
-   La contrainte $\rho(\t_i, X_j) \leq \gamma$ est équivalente à 
+   \subsection{Note}
+   The constraint $\rho(\t_i, X_j) \leq \gamma$ is equivalent to 
    \begin{equation*}
-       \rho(\t_i, X_j) \leq \gamma \Leftrightarrow \left\{
+     \left\{
          \begin{aligned}
-            & X_j\left[ (R_cR_i)^k + (\gamma-x_j^{c,i}(k)) \right] + \left[R_c^3(\gamma-x_j^{c,i}(k))+R_c^k\right]\t_i  \\
+            & X_j\left[ (R_cR_i)^k + (\gamma-x_j^{c,i}(k)) (R_cR_i)^3 \right] + \left[R_c^3(\gamma-x_j^{c,i}(k))+R_c^k\right]\t_i  \\
             & \qquad \qquad + [\t_c^k + (\gamma-x_j^{c,i}(k))\t_c^3] \geq 0 \\
-            & X_j\left[ (R_cR_i)^k - (\gamma + x_j^{c,i}(k)) \right] + \left[-R_c^3(\gamma+x_j^{c,i}(k))+R_c^k\right]\t_i  \\
+            & X_j\left[ (R_cR_i)^k - (\gamma + x_j^{c,i}(k)) (R_cR_i)^3 \right] + \left[-R_c^3(\gamma+x_j^{c,i}(k))+R_c^k\right]\t_i  \\
             & \qquad \qquad + [\t_c^k - (\gamma+x_j^{c,i}(k))\t_c^3] \leq 0 \\
          \end{aligned}
-       \right\}, \ \forall k \in {1,2}.
+       \right\}, \\ \forall k \in {1,2}.
    \end{equation*}
-   et comme $R_c$ et $\t_c$ sont connus, le problème ci-dessus est linéaire en $R_i$ et $\t_i$.
+   Because $R_c$ et $\t_c$ are known from calibration, the previous problem is linear in $R_i$ and $\t_i$.
+   
+   \section{Conclusions}
+   
+% ================================================================
+%  Bibliographie
+% ================================================================
+
+  \bibliography{biblio}
+  \bibliographystyle{acm}
+%  \bibliographystyle{plain}
    
 \end{document}
