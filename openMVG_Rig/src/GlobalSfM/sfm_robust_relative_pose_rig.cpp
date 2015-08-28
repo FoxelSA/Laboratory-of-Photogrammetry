@@ -35,14 +35,14 @@
  *      Attribution" section of <http://foxel.ch/license>.
  */
 
+#include  "./ac_ransac_rig.hpp"
 #include  "./sfm_robust_relative_pose_rig.hpp"
 
 #include "openMVG/robust_estimation/robust_estimator_ACRansac.hpp"
 #include "openMVG/robust_estimation/robust_estimator_ACRansacKernelAdaptator.hpp"
 #include "openMVG/numeric/poly.h"
 
-#include <set>
-
+#include "openMVG/robust_estimation/rand_sampling.hpp"
 
 /*************************
  *
@@ -263,7 +263,7 @@ bool robustRigPose(
   KernelType kernel(b1, b2, scIdOne, scIdTwo, rigOffsets, rigRotations);
 
   // Robustly estimation of the Essential matrix and it's precision
-  std::pair<double,double> acRansacOut = ACRANSAC(kernel, *pvec_inliers,
+  std::pair<double,double> acRansacOut = ACRANSAC_RIG(kernel, *pvec_inliers,
     ACRANSAC_ITER, relativePose, precision, false );
   *errorMax = acRansacOut.first;
 
