@@ -98,7 +98,6 @@ std::pair<double, double> ACRANSAC_RIG(const Kernel &kernel,
   makelogcombi_k(sizeSample, nData, vec_logc_k);
 
   // Reserve 10% of iterations for focused sampling
-  const size_t   given_N = nIter ;
   size_t nIterReserve = nIter/10;
   nIter -= nIterReserve;
 

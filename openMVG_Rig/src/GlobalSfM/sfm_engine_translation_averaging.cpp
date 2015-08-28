@@ -646,12 +646,8 @@ bool GlobalSfMRig_Translation_AveragingSolver::Estimate_T_triplet(
   const std::vector<Mat3> vec_global_R_Triplet =
     {map_globalR.at(poses_id.i), map_globalR.at(poses_id.j), map_globalR.at(poses_id.k)};
 
-  // check that there is enough correspondences to evaluate model
-  const size_t rigSize = sfm_data.GetIntrinsics().size();
-  if ( rig_tracks.size() < 50 * rigSize )
-    return false ;
-
   // initialize rig structure for relative translation estimation
+  const size_t rigSize = sfm_data.GetIntrinsics().size();
   std::vector<Vec3>  rigOffsets(rigSize);
   std::vector<Mat3>  rigRotations(rigSize);
   double             minFocal=1.0e10;
@@ -715,6 +711,10 @@ bool GlobalSfMRig_Translation_AveragingSolver::Estimate_T_triplet(
   {
     rig_tracks.erase(*iterSet);
   }
+
+  // check that there is enough correspondences to evaluate model
+  if ( rig_tracks.size() < 50 * rigSize )
+    return false ;
 
   // initialize data for model evaluation
   std::vector < std::vector < std::vector < double > > > featsAndRigIdPerTrack;
