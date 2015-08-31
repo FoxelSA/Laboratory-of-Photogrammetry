@@ -565,24 +565,25 @@ void ReconstructionEngine_RelativeMotions_RigidRig::Compute_Relative_Rotations
             intrinsic_id_remapping.insert(std::make_pair(view_J->id_intrinsic, intrinsic_id_remapping.size()));
           }
         }
-        rigOffsets.resize(intrinsic_id_remapping.size());
-        rigRotations.resize(intrinsic_id_remapping.size());
-        for (const auto & view_id : used_views)
+        rigOffsets.resize(_sfm_data.GetIntrinsics().size());
+        rigRotations.resize(_sfm_data.GetIntrinsics().size());
+        // Update rig structure from OpenMVG data to OpenGV convention
+        for (const auto & intrinsicVal : _sfm_data.GetIntrinsics())
         {
-          const View * view = _sfm_data.views[view_id].get();
-          const cameras::IntrinsicBase * intrinsicPtr = _sfm_data.GetIntrinsics().at(view->id_intrinsic).get();
+          const cameras::IntrinsicBase * intrinsicPtr = intrinsicVal.second.get();
           if ( intrinsicPtr->getType() == cameras::PINHOLE_RIG_CAMERA )
           {
-            // retrieve camera information from shared pointer
+            // retrieve information from shared pointer
             const cameras::Rig_Pinhole_Intrinsic * rig_intrinsicPtr = dynamic_cast< const cameras::Rig_Pinhole_Intrinsic * > (intrinsicPtr);
             const geometry::Pose3 sub_pose = rig_intrinsicPtr->get_subpose();
+            const double focal = rig_intrinsicPtr->focal();
 
             // update rig stucture
-            const IndexT index  = intrinsic_id_remapping.at(view->id_intrinsic);
+            const IndexT index = intrinsicVal.first;
             rigOffsets[index]   = sub_pose.center();
             rigRotations[index] = sub_pose.rotation().transpose();
 
-            minFocal = std::min( minFocal , rig_intrinsicPtr->focal() );
+            minFocal = std::min( minFocal , focal );
           }
         }
 
@@ -667,14 +668,14 @@ void ReconstructionEngine_RelativeMotions_RigidRig::Compute_Relative_Rotations
 
                 // extract normalized keypoints coordinates
                 bearing_vector << _normalized_features_provider->feats_per_view[I][feat_I].coords().cast<double>(), 1.0;
-                bearing_vector.normalized();
+                bearing_vector.normalize();
                 bearingVectorsRigOne.push_back( bearing_vector );
-                camCorrespondencesRigOne.push_back( intrinsic_id_remapping.at(view_I->id_intrinsic) );
+                camCorrespondencesRigOne.push_back( view_I->id_intrinsic );
 
                 bearing_vector << _normalized_features_provider->feats_per_view[J][feat_J].coords().cast<double>(), 1.0;
-                bearing_vector.normalized();
+                bearing_vector.normalize();
                 bearingVectorsRigTwo.push_back( bearing_vector );
-                camCorrespondencesRigTwo.push_back( intrinsic_id_remapping.at(view_J->id_intrinsic) );
+                camCorrespondencesRigTwo.push_back( view_J->id_intrinsic );
 
                 // update map
                 vec_bearingIdToTrackId.push_back(iterTracks->first);

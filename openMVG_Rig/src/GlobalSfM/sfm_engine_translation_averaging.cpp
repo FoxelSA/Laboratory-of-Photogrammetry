@@ -37,6 +37,7 @@
  */
 
 #include "./sfm_engine_translation_averaging.hpp"
+#include  "./ac_ransac_rig.hpp"
 #include "./triplet_t_ACRansac_kernelAdaptator.hpp"
 
 #include "openMVG/sfm/sfm_data.hpp"
@@ -645,12 +646,8 @@ bool GlobalSfMRig_Translation_AveragingSolver::Estimate_T_triplet(
   const std::vector<Mat3> vec_global_R_Triplet =
     {map_globalR.at(poses_id.i), map_globalR.at(poses_id.j), map_globalR.at(poses_id.k)};
 
-  // check that there is enough correspondences to evaluate model
-  const size_t rigSize = sfm_data.GetIntrinsics().size();
-  if ( rig_tracks.size() < 50 * rigSize )
-    return false ;
-
   // initialize rig structure for relative translation estimation
+  const size_t rigSize = sfm_data.GetIntrinsics().size();
   std::vector<Vec3>  rigOffsets(rigSize);
   std::vector<Mat3>  rigRotations(rigSize);
   double             minFocal=1.0e10;
@@ -682,6 +679,42 @@ bool GlobalSfMRig_Translation_AveragingSolver::Estimate_T_triplet(
       {poses_id.j,1},
       {poses_id.k,2}
     };
+
+  // clean tracks to keep only those shared by three poses
+  std::set  <size_t>          tracksToRemove;
+  for (STLMAPTracks::const_iterator iterTracks = rig_tracks.begin();
+    iterTracks != rig_tracks.end(); ++iterTracks)
+  {
+    std::set<size_t>   set_poses_index;
+    // loop on subtracks
+    const submapTrack & track = iterTracks->second;
+    for (submapTrack::const_iterator iterTrack_I = track.begin();
+        iterTrack_I != track.end(); ++iterTrack_I)
+    {
+      // extract pose id
+      const size_t idx_view_I  = iterTrack_I->first;
+      const size_t feat_I      = iterTrack_I->second;
+      const View * view_I = sfm_data.views.at(idx_view_I).get();
+      const IndexT pose_index_I = view_I->id_pose;
+
+      set_poses_index.insert( pose_index_I );
+    }
+
+    // if tracks is not seen by three views, erease it
+    if( set_poses_index.size() != 3 )
+        tracksToRemove.insert(iterTracks->first);
+  }
+
+  // remove unneeded tracks
+  for( std::set<size_t>::const_iterator iterSet = tracksToRemove.begin();
+        iterSet != tracksToRemove.end(); ++iterSet)
+  {
+    rig_tracks.erase(*iterSet);
+  }
+
+  // check that there is enough correspondences to evaluate model
+  if ( rig_tracks.size() < 50 * rigSize )
+    return false ;
 
   // initialize data for model evaluation
   std::vector < std::vector < std::vector < double > > > featsAndRigIdPerTrack;
@@ -768,7 +801,7 @@ bool GlobalSfMRig_Translation_AveragingSolver::Estimate_T_triplet(
   KernelType kernel(featsAndRigIdPerTrack, vec_global_R_Triplet, rigRotations, rigOffsets, ThresholdUpperBound);
 
   rigTrackTrifocalTensorModel T;
-  std::pair<double,double> acStat = robust::ACRANSAC(kernel, vec_inliers, ORSA_ITER, &T, dPrecision/minFocal, false );
+  std::pair<double,double> acStat = robust::ACRANSAC_RIG(kernel, vec_inliers, ORSA_ITER, &T, dPrecision/minFocal, false );
   // If robust estimation fail => stop.
   if (dPrecision == std::numeric_limits<double>::infinity())
     return false;
@@ -855,7 +888,7 @@ bool GlobalSfMRig_Translation_AveragingSolver::Estimate_T_triplet(
 #endif
 
   // if there is more than 1/3 of inliers, keep model
-  const bool bTest =  ( vec_inliers.size() > 0.30 * rig_tracks.size() ) ;
+  const bool bTest =  ( vec_inliers.size() > 0.66 * rig_tracks.size() ) ;
 
   {
     std::cout << "Triplet : status: " << bTest
