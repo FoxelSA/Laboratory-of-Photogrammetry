@@ -43,6 +43,7 @@
 #include "openMVG/sfm/sfm_data.hpp"
 #include "openMVG/sfm/sfm_filters.hpp"
 #include "openMVG/sfm/sfm_data_io.hpp"
+#include "openMVG/sfm/sfm_data_BA_ceres.hpp"
 #include "openMVG/sfm/pipelines/global/sfm_global_reindex.hpp"
 #include "openMVG/sfm/pipelines/global/mutexSet.hpp"
 #include "openMVG/multiview/translation_averaging_common.hpp"
@@ -545,9 +546,7 @@ void GlobalSfMRig_Translation_AveragingSolver::ComputePutativeTranslation_EdgesC
             for (std::vector<size_t>::const_iterator iterInliers = vec_inliers.begin();
               iterInliers != vec_inliers.end(); ++iterInliers)
             {
-              STLMAPTracks::const_iterator iterTracks = pose_triplet_tracks.begin();
-              std::advance(iterTracks, *iterInliers);
-              const submapTrack & subTrack = iterTracks->second;
+              const submapTrack & subTrack = pose_triplet_tracks.at(*iterInliers);
 
               // create pairwise matches from inlier track
               for (size_t index_I = 0; index_I < subTrack.size() ; ++index_I)
@@ -782,7 +781,7 @@ bool GlobalSfMRig_Translation_AveragingSolver::Estimate_T_triplet(
             tmp[map_poseId_to_contiguous.at(pose_index_J)]= std::move(feat_cam_J);
             tmp[map_poseId_to_contiguous.at(pose_index_K)]= std::move(feat_cam_K);
             featsAndRigIdPerTrack.emplace_back( std::move(tmp) );
-            sampleToTrackId[ sampleToTrackId.size() ] = cpt;
+            sampleToTrackId[ sampleToTrackId.size() ] = iterTracks->first;
           }
         }
       }
@@ -814,7 +813,7 @@ bool GlobalSfMRig_Translation_AveragingSolver::Estimate_T_triplet(
   // update inlier track list
   std::set <size_t>  inliers_tracks;
   for( size_t i = 0 ; i < vec_inliers.size() ; ++i )
-      inliers_tracks.insert( sampleToTrackId[vec_inliers[i]] );
+      inliers_tracks.insert( sampleToTrackId.at(vec_inliers[i]) );
 
   // use move_iterator to convert the set to the vector directly ?
   std::vector <size_t>(std::make_move_iterator(inliers_tracks.begin()),
@@ -852,7 +851,7 @@ bool GlobalSfMRig_Translation_AveragingSolver::Estimate_T_triplet(
   for (size_t idx=0; idx < vec_inliers.size(); ++idx)
   {
     const size_t trackId = vec_inliers[idx];
-    const submapTrack & track = rig_tracks[trackId];
+    const submapTrack & track = rig_tracks.at(trackId);
     Observations & obs = structure[idx].obs;
     for (submapTrack::const_iterator it = track.begin(); it != track.end(); ++it)
     {
@@ -881,10 +880,22 @@ bool GlobalSfMRig_Translation_AveragingSolver::Estimate_T_triplet(
     structure_estimator.triangulate(tiny_scene);
   }
 
-  // export scene for visualization
-  std::ostringstream os;
-  os << poses_id.i << "_" << poses_id.j << "_" << poses_id.k << ".ply";
-  Save(tiny_scene, os.str(), ESfM_Data(STRUCTURE | EXTRINSICS));
+  // Refine structure and poses (keep intrinsic constant)
+  Bundle_Adjustment_Ceres::BA_options options(false, false);
+  options._linear_solver_type = ceres::SPARSE_SCHUR;
+  Bundle_Adjustment_Ceres bundle_adjustment_obj(options);
+  if (bundle_adjustment_obj.Adjust(tiny_scene, false, true, false))
+  {
+    // export scene for visualization
+    //std::ostringstream os;
+    //os << poses_id.i << "_" << poses_id.j << "_" << poses_id.k << ".ply";
+    //Save(tiny_scene, os.str(), ESfM_Data(STRUCTURE | EXTRINSICS));
+
+    // Export refined relative translations
+    vec_tis[0] = tiny_scene.poses[poses_id.i].translation();
+    vec_tis[1] = tiny_scene.poses[poses_id.j].translation();
+    vec_tis[2] = tiny_scene.poses[poses_id.k].translation();
+  }
 #endif
 
   // if there is more than 1/3 of inliers, keep model
