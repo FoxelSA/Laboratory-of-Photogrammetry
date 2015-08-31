@@ -680,7 +680,7 @@ bool GlobalSfMRig_Translation_AveragingSolver::Estimate_T_triplet(
     };
 
   // clean tracks to keep only those shared by three poses
-  std::set  <size_t>          tracksToRemove;
+  std::set<size_t> tracksToRemove;
   for (STLMAPTracks::const_iterator iterTracks = rig_tracks.begin();
     iterTracks != rig_tracks.end(); ++iterTracks)
   {
@@ -692,20 +692,19 @@ bool GlobalSfMRig_Translation_AveragingSolver::Estimate_T_triplet(
     {
       // extract pose id
       const size_t idx_view_I  = iterTrack_I->first;
-      const size_t feat_I      = iterTrack_I->second;
       const View * view_I = sfm_data.views.at(idx_view_I).get();
       const IndexT pose_index_I = view_I->id_pose;
 
       set_poses_index.insert( pose_index_I );
     }
 
-    // if tracks is not seen by three views, erease it
-    if( set_poses_index.size() != 3 )
-        tracksToRemove.insert(iterTracks->first);
+    // if tracks is not seen by three views, erase it
+    if ( set_poses_index.size() != 3 )
+      tracksToRemove.insert(iterTracks->first);
   }
 
   // remove unneeded tracks
-  for( std::set<size_t>::const_iterator iterSet = tracksToRemove.begin();
+  for (std::set<size_t>::const_iterator iterSet = tracksToRemove.begin();
         iterSet != tracksToRemove.end(); ++iterSet)
   {
     rig_tracks.erase(*iterSet);
