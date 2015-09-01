@@ -236,7 +236,7 @@ bool create_gps_imu_map( SfM_Gps_Data & data,
           if( map_rotationPerTimestamp.size() == 0 )
               RI = R;
 
-          const Mat3 Rf = Rx * ( RI.transpose() * R );
+          const Mat3 Rf = Rx * R * RI.transpose() * Rx.transpose() ;
 
           //update map
           map_rotationPerTimestamp[timestamp] = Rf;
@@ -267,7 +267,7 @@ bool create_gps_imu_map( SfM_Gps_Data & data,
               CI = C;
 
           //update map
-          map_translationPerTimestamp[timestamp] =  (C-CI);
+          map_translationPerTimestamp[timestamp] = Rx * RI * (C-CI);
       }
   }
 
