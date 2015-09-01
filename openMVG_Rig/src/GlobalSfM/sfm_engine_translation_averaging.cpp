@@ -480,6 +480,15 @@ void GlobalSfMRig_Translation_AveragingSolver::ComputePutativeTranslation_EdgesC
       for (size_t i = 0; i < vec_possibleTriplets.size(); ++i)
       {
         const graph::Triplet & triplet = vec_triplets[vec_possibleTriplets[i]];
+
+        // If the triplet is already estimated by another thread; try a new one
+        if (m_mutexSet.count(Pair(triplet.i, triplet.j)) &&
+            m_mutexSet.count(Pair(triplet.i, triplet.k)) &&
+            m_mutexSet.count(Pair(triplet.j, triplet.k)))
+        {
+          continue;
+        }
+
         //--
         // Try to estimate this triplet.
         //--
@@ -510,8 +519,21 @@ void GlobalSfMRig_Translation_AveragingSolver::ComputePutativeTranslation_EdgesC
           std::cout << "Triplet solved: \n"
             << "#inliers: " << vec_inliers.size() << std::endl;
 
-          // Compute the 3 relative motions
-          // IJ, JK, IK
+          if (m_mutexSet.count(Pair(triplet.i, triplet.j)) &&
+              m_mutexSet.count(Pair(triplet.i, triplet.k)) &&
+              m_mutexSet.count(Pair(triplet.j, triplet.k)))
+          {
+            // If triplet already estimated by another thread;
+            //  stop, since the edge have already a translation estimate.
+            break;
+          }
+
+          // Since the triplet is estimated, mark the edges as estimated
+          m_mutexSet.insert(std::make_pair(triplet.i, triplet.j));
+          m_mutexSet.insert(std::make_pair(triplet.j, triplet.k));
+          m_mutexSet.insert(std::make_pair(triplet.i, triplet.k));
+
+          // Compute the triplet relative motions (IJ, JK, IK)
           const Mat3 RI = map_globalR.at(triplet.i);
           const Mat3 RJ = map_globalR.at(triplet.j);
           const Mat3 RK = map_globalR.at(triplet.k);
@@ -566,16 +588,13 @@ void GlobalSfMRig_Translation_AveragingSolver::ComputePutativeTranslation_EdgesC
                   const size_t id_view_J = iter_J->first;
                   const size_t id_feat_J = iter_J->second;
 
-                  newpairMatches[std::make_pair(id_view_I, id_view_J)].push_back(IndMatch(id_feat_I, id_feat_J));
+                  newpairMatches[std::make_pair(id_view_I, id_view_J)].emplace_back(id_feat_I, id_feat_J);
                 }
               }
             }
           }
-
-          //-- Remove the 3 estimated edges
-          m_mutexSet.insert(std::make_pair(triplet.i, triplet.j));
-          m_mutexSet.insert(std::make_pair(triplet.j, triplet.k));
-          m_mutexSet.insert(std::make_pair(triplet.i, triplet.k));
+          // Since a relative translation have been found for the edge: vec_edges[k],
+          //  we break and start to estimate the translations for some other edges.
           break;
         }
       }
@@ -586,9 +605,9 @@ void GlobalSfMRig_Translation_AveragingSolver::ComputePutativeTranslation_EdgesC
   std::cout << "TRIPLET COVERAGE TIMING: " << timeLP_triplet << " seconds" << std::endl;
 
   std::cout << "-------------------------------" << "\n"
-      << "-- #Effective translations estimates: " << vec_initialRijTijEstimates.size()/3
-      << " from " << vec_triplets.size() << " triplets.\n"
-      << "-- resulting in " <<vec_initialRijTijEstimates.size() << " translation estimation.\n"
+      << "-- #Relative translations estimates: " << vec_initialRijTijEstimates.size()/3
+      << " computed from " << vec_triplets.size() << " triplets.\n"
+      << "-- resulting in " << vec_initialRijTijEstimates.size() << " translations estimation.\n"
       << "-- timing to obtain the relative translations: " << timeLP_triplet << " seconds.\n"
       << "-------------------------------" << std::endl;
 }
@@ -728,9 +747,9 @@ bool GlobalSfMRig_Translation_AveragingSolver::Estimate_T_triplet(
     for (submapTrack::const_iterator iterTrack_I = track.begin();
       iterTrack_I != track.end(); ++iterTrack_I)
     {
-      const size_t idx_view_I  = iterTrack_I->first;
-      const size_t feat_I      = iterTrack_I->second;
-      const View * view_I = sfm_data.views.at(idx_view_I).get();
+      const size_t idx_view_I   = iterTrack_I->first;
+      const size_t feat_I       = iterTrack_I->second;
+      const View * view_I       = sfm_data.views.at(idx_view_I).get();
       const IndexT pose_index_I = view_I->id_pose;
 
       submapTrack::const_iterator iterTrack_J = iterTrack_I;
@@ -738,9 +757,9 @@ bool GlobalSfMRig_Translation_AveragingSolver::Estimate_T_triplet(
 
       for (; iterTrack_J != track.end(); ++iterTrack_J)
       {
-        const size_t idx_view_J  = iterTrack_J->first;
-        const size_t feat_J      = iterTrack_J->second;
-        const View * view_J = sfm_data.views.at(idx_view_J).get();
+        const size_t idx_view_J   = iterTrack_J->first;
+        const size_t feat_J       = iterTrack_J->second;
+        const View * view_J       = sfm_data.views.at(idx_view_J).get();
         const IndexT pose_index_J = view_J->id_pose;
         if (pose_index_I == pose_index_J)
           continue;
@@ -750,9 +769,9 @@ bool GlobalSfMRig_Translation_AveragingSolver::Estimate_T_triplet(
 
         for (; iterTrack_K != track.end(); ++iterTrack_K)
         {
-          const size_t idx_view_K  = iterTrack_K->first;
-          const size_t feat_K      = iterTrack_K->second;
-          const View * view_K = sfm_data.views.at(idx_view_K).get();
+          const size_t idx_view_K   = iterTrack_K->first;
+          const size_t feat_K       = iterTrack_K->second;
+          const View * view_K       = sfm_data.views.at(idx_view_K).get();
           const IndexT pose_index_K = view_K->id_pose;
 
           // if the images are in 3 different poses
@@ -890,7 +909,7 @@ bool GlobalSfMRig_Translation_AveragingSolver::Estimate_T_triplet(
     //os << poses_id.i << "_" << poses_id.j << "_" << poses_id.k << ".ply";
     //Save(tiny_scene, os.str(), ESfM_Data(STRUCTURE | EXTRINSICS));
 
-    // Export refined relative translations
+    // Export refined translations
     vec_tis[0] = tiny_scene.poses[poses_id.i].translation();
     vec_tis[1] = tiny_scene.poses[poses_id.j].translation();
     vec_tis[2] = tiny_scene.poses[poses_id.k].translation();
