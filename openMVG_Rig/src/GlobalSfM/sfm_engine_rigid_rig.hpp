@@ -73,7 +73,7 @@ protected:
   /// Compute from relative rotations the global rotations of the camera poses
   bool Compute_Global_Rotations
   (
-    const RelativeInfo_Map & vec_relatives,
+    const openMVG::rotation_averaging::RelativeRotations & vec_relatives_R,
     Hash_Map<IndexT, Mat3> & map_globalR
   );
 
@@ -92,7 +92,7 @@ protected:
 
 private:
   /// Compute relative rotations
-  void Compute_Relative_Rotations(RelativeInfo_Map & vec_relatives);
+  void Compute_Relative_Rotations(openMVG::rotation_averaging::RelativeRotations & vec_relatives_R);
 
   //----
   //-- Data

@@ -149,11 +149,11 @@ bool ReconstructionEngine_RelativeMotions_RigidRig::Process() {
   // TODO: keep largest biedge connected pose subgraph
   //-------------------
 
-  RelativeInfo_Map relative_Rt;
-  Compute_Relative_Rotations(relative_Rt);
+  openMVG::rotation_averaging::RelativeRotations relatives_R;
+  Compute_Relative_Rotations(relatives_R);
 
   Hash_Map<IndexT, Mat3> global_rotations;
-  if (!Compute_Global_Rotations(relative_Rt, global_rotations))
+  if (!Compute_Global_Rotations(relatives_R, global_rotations))
   {
     std::cerr << "GlobalSfM:: Rotation Averaging failure!" << std::endl;
     return false;
@@ -200,45 +200,25 @@ bool ReconstructionEngine_RelativeMotions_RigidRig::Process() {
 /// Compute from relative rotations the global rotations of the camera poses
 bool ReconstructionEngine_RelativeMotions_RigidRig::Compute_Global_Rotations
 (
-  const RelativeInfo_Map & relatives_Rt,
+  const rotation_averaging::RelativeRotations & relatives_R,
   Hash_Map<IndexT, Mat3> & global_rotations
 )
 {
-  if(relatives_Rt.empty())
+  if(relatives_R.empty())
     return false;
-
-  // Convert RelativeInfo_Map for appropriate input to solve the global rotations
-  // - store the relative rotations and set a weight
-  using namespace openMVG::rotation_averaging;
-  RelativeRotations vec_relativeRotEstimate;
+  // Log statistics about the relative rotation graph
   {
     std::set<IndexT> set_pose_ids;
-    for (const auto & relative_Rt : relatives_Rt)
+    for (const auto & relative_R : relatives_R)
     {
-      const Pair relative_pose_indices = relative_Rt.first;
-      set_pose_ids.insert(relative_pose_indices.first);
-      set_pose_ids.insert(relative_pose_indices.second);
+      set_pose_ids.insert(relative_R.i);
+      set_pose_ids.insert(relative_R.j);
     }
 
     std::cout << "\n-------------------------------" << "\n"
       << " Global rotations computation: " << "\n"
-      << "  #relative rotations: " << relatives_Rt.size() << "\n"
+      << "  #relative rotations: " << relatives_R.size() << "\n"
       << "  #global rotations: " << set_pose_ids.size() << std::endl;
-
-    // Setup input relative rotation data for global rotation computation
-    vec_relativeRotEstimate.reserve(relatives_Rt.size());
-    for(RelativeInfo_Map::const_iterator iter = relatives_Rt.begin();
-      iter != relatives_Rt.end(); ++iter)
-    {
-      const openMVG::relativeInfo & rel = *iter;
-      // TODO: use a weight that count the number of matches between the pose
-      // /!\ sum the relative matches that belong to the relative pose ids
-      {
-        vec_relativeRotEstimate.push_back(RelativeRotation(
-          rel.first.first, rel.first.second,
-          rel.second.first, 1.0 ));
-      }
-    }
   }
 
   // Global Rotation solver:
@@ -249,9 +229,9 @@ bool ReconstructionEngine_RelativeMotions_RigidRig::Compute_Global_Rotations
   GlobalSfM_Rotation_AveragingSolver rotation_averaging_solver;
   const bool b_rotation_averaging = rotation_averaging_solver.Run(
     _eRotationAveragingMethod, eRelativeRotationInferenceMethod,
-    vec_relativeRotEstimate, global_rotations);
+    relatives_R, global_rotations);
 
-  std::cout << "#global_rotations: " << global_rotations.size() << std::endl;
+  std::cout << "Found #global_rotations: " << global_rotations.size() << std::endl;
 
   if (b_rotation_averaging)
   {
@@ -458,6 +438,14 @@ bool ReconstructionEngine_RelativeMotions_RigidRig::Adjust()
       ESfM_Data(EXTRINSICS | STRUCTURE));
   }
 
+  b_BA_Status = bundle_adjustment_obj.Adjust(_sfm_data, true, true, false);
+  if (b_BA_Status && !_sLoggingFile.empty())
+  {
+    Save(_sfm_data,
+      stlplus::create_filespec(stlplus::folder_part(_sLoggingFile), "structure_04_refined_RT_Xi", "ply"),
+      ESfM_Data(EXTRINSICS | STRUCTURE));
+  }
+
   // Check that poses & intrinsic cover some measures (after outlier removal)
   const IndexT minPointPerPose = 12; // 6 min
   const IndexT minTrackLenght = 3; // 2 min
@@ -473,7 +461,7 @@ bool ReconstructionEngine_RelativeMotions_RigidRig::Adjust()
     if (b_BA_Status && !_sLoggingFile.empty())
     {
       Save(_sfm_data,
-        stlplus::create_filespec(stlplus::folder_part(_sLoggingFile), "structure_04_unstable_removed", "ply"),
+        stlplus::create_filespec(stlplus::folder_part(_sLoggingFile), "structure_05_unstable_removed", "ply"),
         ESfM_Data(EXTRINSICS | STRUCTURE));
     }
   }
@@ -483,11 +471,11 @@ bool ReconstructionEngine_RelativeMotions_RigidRig::Adjust()
 
 void ReconstructionEngine_RelativeMotions_RigidRig::Compute_Relative_Rotations
 (
-  RelativeInfo_Map & vec_relatives_Rt
+  rotation_averaging::RelativeRotations & vec_relatives_R
 )
 {
   //
-  // Build the Relative pose graph:
+  // Build the Relative pose graph from matches:
   //
   /// pairwise view relation shared between poseIds
   typedef std::map< Pair, Pair_Set > RigWiseMatches;
@@ -565,25 +553,24 @@ void ReconstructionEngine_RelativeMotions_RigidRig::Compute_Relative_Rotations
             intrinsic_id_remapping.insert(std::make_pair(view_J->id_intrinsic, intrinsic_id_remapping.size()));
           }
         }
-        rigOffsets.resize(_sfm_data.GetIntrinsics().size());
-        rigRotations.resize(_sfm_data.GetIntrinsics().size());
-        // Update rig structure from OpenMVG data to OpenGV convention
-        for (const auto & intrinsicVal : _sfm_data.GetIntrinsics())
+        rigOffsets.resize(intrinsic_id_remapping.size());
+        rigRotations.resize(intrinsic_id_remapping.size());
+        for (const auto & view_id : used_views)
         {
-          const cameras::IntrinsicBase * intrinsicPtr = intrinsicVal.second.get();
+          const View * view = _sfm_data.views[view_id].get();
+          const cameras::IntrinsicBase * intrinsicPtr = _sfm_data.GetIntrinsics().at(view->id_intrinsic).get();
           if ( intrinsicPtr->getType() == cameras::PINHOLE_RIG_CAMERA )
           {
-            // retrieve information from shared pointer
+            // retrieve camera information from shared pointer
             const cameras::Rig_Pinhole_Intrinsic * rig_intrinsicPtr = dynamic_cast< const cameras::Rig_Pinhole_Intrinsic * > (intrinsicPtr);
             const geometry::Pose3 sub_pose = rig_intrinsicPtr->get_subpose();
-            const double focal = rig_intrinsicPtr->focal();
 
             // update rig stucture
-            const IndexT index = intrinsicVal.first;
+            const IndexT index  = intrinsic_id_remapping.at(view->id_intrinsic);
             rigOffsets[index]   = sub_pose.center();
             rigRotations[index] = sub_pose.rotation().transpose();
 
-            minFocal = std::min( minFocal , focal );
+            minFocal = std::min( minFocal , rig_intrinsicPtr->focal() );
           }
         }
 
@@ -608,7 +595,7 @@ void ReconstructionEngine_RelativeMotions_RigidRig::Compute_Relative_Rotations
             continue;
 
           // add bearing vectors if they do not belong to the same pose
-          if( view_I->id_pose == view_J->id_pose )
+          if ( view_I->id_pose == view_J->id_pose )
             continue;
 
           // export pairwise matches
@@ -670,12 +657,12 @@ void ReconstructionEngine_RelativeMotions_RigidRig::Compute_Relative_Rotations
                 bearing_vector << _normalized_features_provider->feats_per_view[I][feat_I].coords().cast<double>(), 1.0;
                 bearing_vector.normalize();
                 bearingVectorsRigOne.push_back( bearing_vector );
-                camCorrespondencesRigOne.push_back( view_I->id_intrinsic );
+                camCorrespondencesRigOne.push_back( intrinsic_id_remapping.at(view_I->id_intrinsic) );
 
                 bearing_vector << _normalized_features_provider->feats_per_view[J][feat_J].coords().cast<double>(), 1.0;
                 bearing_vector.normalize();
                 bearingVectorsRigTwo.push_back( bearing_vector );
-                camCorrespondencesRigTwo.push_back( view_J->id_intrinsic );
+                camCorrespondencesRigTwo.push_back( intrinsic_id_remapping.at(view_J->id_intrinsic) );
 
                 // update map
                 vec_bearingIdToTrackId.push_back(iterTracks->first);
@@ -781,10 +768,11 @@ void ReconstructionEngine_RelativeMotions_RigidRig::Compute_Relative_Rotations
               // Update found relative pose
               relativePose = Pose3(Rrel, -Rrel.transpose() * trel);
 
-              // Add the relative pose to the relative pose graph
-              vec_relatives_Rt[relative_pose_pair] = std::make_pair(
-                relativePose.rotation(),
-                relativePose.translation());
+              // Add the relative rotation to the relative 'rotation' pose graph
+              using namespace openMVG::rotation_averaging;
+              vec_relatives_R.push_back(RelativeRotation(
+                relative_pose_pair.first, relative_pose_pair.second,
+                relativePose.rotation(), vec_inliers.size() ));
             }
           }
         }
@@ -815,12 +803,12 @@ void ReconstructionEngine_RelativeMotions_RigidRig::Compute_Relative_Rotations
     {
       std::set<IndexT> set_pose_ids;
       Pair_Set relative_pose_pairs;
-      for (const auto & relative_Rt : vec_relatives_Rt)
+      for (const auto & relative_R : vec_relatives_R)
       {
-        const Pair relative_pose_indices = relative_Rt.first;
+        const Pair relative_pose_indices(relative_R.i, relative_R.j);
         relative_pose_pairs.insert(relative_pose_indices);
-        set_pose_ids.insert(relative_pose_indices.first);
-        set_pose_ids.insert(relative_pose_indices.second);
+        set_pose_ids.insert(relative_R.i);
+        set_pose_ids.insert(relative_R.j);
       }
       const std::string sGraph_name = "global_relative_rotation_pose_graph";
       graph::indexedGraph putativeGraph(set_pose_ids, relative_pose_pairs);

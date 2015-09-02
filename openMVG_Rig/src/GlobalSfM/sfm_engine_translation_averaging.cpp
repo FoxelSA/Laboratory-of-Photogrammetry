@@ -729,9 +729,9 @@ bool GlobalSfMRig_Translation_AveragingSolver::Estimate_T_triplet(
     rig_tracks.erase(*iterSet);
   }
 
-  // check that there is enough correspondences to evaluate model
-  if ( rig_tracks.size() < 50 * rigSize )
-    return false ;
+  // check that there is enough correspondences to evaluate model (more or less 50 tracks per image)
+  if ( rig_tracks.size() < 50 * 3 )
+    return false;
 
   // initialize data for model evaluation
   std::vector < std::vector < std::vector < double > > > featsAndRigIdPerTrack;
@@ -917,7 +917,7 @@ bool GlobalSfMRig_Translation_AveragingSolver::Estimate_T_triplet(
 #endif
 
   // if there is more than 1/3 of inliers, keep model
-  const bool bTest =  ( vec_inliers.size() > 0.66 * rig_tracks.size() ) ;
+  const bool bTest =  ( vec_inliers.size() > 0.33 * rig_tracks.size() ) ;
 
   {
     std::cout << "Triplet : status: " << bTest
