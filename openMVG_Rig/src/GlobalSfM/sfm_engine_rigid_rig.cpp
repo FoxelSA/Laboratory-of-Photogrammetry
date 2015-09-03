@@ -529,6 +529,8 @@ void ReconstructionEngine_RelativeMotions_RigidRig::Compute_Relative_Rotations
         // Update rig structure from OpenMVG data to OpenGV convention
         // - List all used views, for each parse and use intrinsic data
         std::set<IndexT> used_views;
+        IndexT intrinsic_number_pose_one=0;
+        IndexT intrinsic_number_pose_two=0;
         for (const auto & pairIterator : match_pairs )
         {
           const IndexT I = pairIterator.first;
@@ -546,11 +548,23 @@ void ReconstructionEngine_RelativeMotions_RigidRig::Compute_Relative_Rotations
           {
             used_views.insert(I);
             intrinsic_id_remapping.insert(std::make_pair(view_I->id_intrinsic, intrinsic_id_remapping.size()));
+
+            // update number of subcameras for each pose
+            if(view_I->id_pose == relative_pose_pair.first )
+              ++intrinsic_number_pose_one;
+            else
+              ++intrinsic_number_pose_two;
           }
           if (intrinsic_id_remapping.count(view_J->id_intrinsic) == 0)
           {
             used_views.insert(J);
             intrinsic_id_remapping.insert(std::make_pair(view_J->id_intrinsic, intrinsic_id_remapping.size()));
+
+            // update number of subcamera for each poses
+            if(view_J->id_pose == relative_pose_pair.first )
+              ++intrinsic_number_pose_one;
+            else
+              ++intrinsic_number_pose_two;
           }
         }
         rigOffsets.resize(intrinsic_id_remapping.size());
@@ -610,7 +624,7 @@ void ReconstructionEngine_RelativeMotions_RigidRig::Compute_Relative_Rotations
         STLMAPTracks map_tracks; // reconstructed track (visibility per 3D point)
         tracksBuilder.ExportToSTL(map_tracks);
 
-        if ( map_tracks.size() > 50 * rigOffsets.size()) // Early rejection if too few tracks
+        if ( map_tracks.size() > 50 * std::max(intrinsic_number_pose_one, intrinsic_number_pose_two)) // Early rejection if too few tracks
         {
           // initialize structures used for matching between rigs
           opengv::bearingVectors_t bearingVectorsRigOne, bearingVectorsRigTwo;
@@ -634,7 +648,7 @@ void ReconstructionEngine_RelativeMotions_RigidRig::Compute_Relative_Rotations
               const size_t feat_I = iterTrack_I->second;
               submapTrack::const_iterator iterTrack_J = iterTrack_I;
               std::advance(iterTrack_J, 1);
-              for (iterTrack_J; iterTrack_J != track.end(); ++iterTrack_J)
+              for (; iterTrack_J != track.end(); ++iterTrack_J)
               {
                 const size_t J  = iterTrack_J->first;
                 const size_t feat_J = iterTrack_J->second;
@@ -729,7 +743,7 @@ void ReconstructionEngine_RelativeMotions_RigidRig::Compute_Relative_Rotations
             for (size_t idx=0; idx < vec_inliers.size(); ++idx)
             {
               const size_t trackId = vec_bearingIdToTrackId[vec_inliers[idx]];
-              const submapTrack & track = map_tracks[trackId];
+              const submapTrack & track = map_tracks.at(trackId);
               Observations & obs = structure[idx].obs;
               for (submapTrack::const_iterator it = track.begin(); it != track.end(); ++it)
               {

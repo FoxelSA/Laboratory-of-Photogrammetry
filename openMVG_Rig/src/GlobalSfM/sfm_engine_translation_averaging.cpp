@@ -628,7 +628,10 @@ bool GlobalSfMRig_Translation_AveragingSolver::Estimate_T_triplet(
 {
   // List matches that belong to the triplet of poses
   PairWiseMatches map_triplet_matches;
+  std::map<IndexT, IndexT> intrinsic_id_remapping;
   std::set<IndexT> set_pose_ids;
+  std::set<IndexT> used_view;
+
   set_pose_ids.insert(poses_id.i);
   set_pose_ids.insert(poses_id.j);
   set_pose_ids.insert(poses_id.k);
@@ -648,6 +651,19 @@ bool GlobalSfMRig_Translation_AveragingSolver::Estimate_T_triplet(
     {
       map_triplet_matches.insert( match_iterator );
     }
+
+    // update intrinsic map
+    if( intrinsic_id_remapping.count(v1->id_intrinsic) == 0 )
+    {
+      used_view.insert(v1->id_view);
+      intrinsic_id_remapping.insert(std::make_pair(v1->id_intrinsic, intrinsic_id_remapping.size()));
+    }
+
+    if( intrinsic_id_remapping.count(v2->id_intrinsic) == 0 )
+    {
+      used_view.insert(v2->id_view);
+      intrinsic_id_remapping.insert(std::make_pair(v2->id_intrinsic, intrinsic_id_remapping.size()));
+    }
   }
 
   openMVG::tracks::TracksBuilder tracksBuilder;
@@ -665,28 +681,27 @@ bool GlobalSfMRig_Translation_AveragingSolver::Estimate_T_triplet(
     {map_globalR.at(poses_id.i), map_globalR.at(poses_id.j), map_globalR.at(poses_id.k)};
 
   // initialize rig structure for relative translation estimation
-  const size_t rigSize = sfm_data.GetIntrinsics().size();
-  std::vector<Vec3>  rigOffsets(rigSize);
-  std::vector<Mat3>  rigRotations(rigSize);
+  std::vector<Vec3>  rigOffsets(intrinsic_id_remapping.size());
+  std::vector<Mat3>  rigRotations(intrinsic_id_remapping.size());
   double             minFocal=1.0e10;
 
   // Update rig structure from OpenMVG data to OpenGV convention
-  for (const auto & intrinsicVal : sfm_data.GetIntrinsics())
+  for (const auto & view_id : used_view )
   {
-    const cameras::IntrinsicBase * intrinsicPtr = intrinsicVal.second.get();
+    const View * view = sfm_data.views.at(view_id).get();
+    const cameras::IntrinsicBase * intrinsicPtr = sfm_data.GetIntrinsics().at(view->id_intrinsic).get();
     if ( intrinsicPtr->getType() == cameras::PINHOLE_RIG_CAMERA )
     {
       // retrieve information from shared pointer
       const cameras::Rig_Pinhole_Intrinsic * rig_intrinsicPtr = dynamic_cast< const cameras::Rig_Pinhole_Intrinsic * > (intrinsicPtr);
       const geometry::Pose3 sub_pose = rig_intrinsicPtr->get_subpose();
-      const double focal = rig_intrinsicPtr->focal();
 
       // update rig stucture
-      const IndexT index = intrinsicVal.first;
+      const IndexT index = intrinsic_id_remapping.at(view->id_intrinsic);
       rigOffsets[index]   = sub_pose.center();
       rigRotations[index] = sub_pose.rotation();
 
-      minFocal = std::min( minFocal , focal );
+      minFocal = std::min( minFocal , rig_intrinsicPtr->focal() );
     }
   }
 
@@ -699,7 +714,11 @@ bool GlobalSfMRig_Translation_AveragingSolver::Estimate_T_triplet(
     };
 
   // clean tracks to keep only those shared by three poses
-  std::set<size_t> tracksToRemove;
+  std::set<IndexT> tracksToRemove;
+  std::set<IndexT> intrinsic_pose_one;
+  std::set<IndexT> intrinsic_pose_two;
+  std::set<IndexT> intrinsic_pose_three;
+
   for (STLMAPTracks::const_iterator iterTracks = rig_tracks.begin();
     iterTracks != rig_tracks.end(); ++iterTracks)
   {
@@ -715,6 +734,13 @@ bool GlobalSfMRig_Translation_AveragingSolver::Estimate_T_triplet(
       const IndexT pose_index_I = view_I->id_pose;
 
       set_poses_index.insert( pose_index_I );
+
+      if( pose_index_I == poses_id.i )
+        intrinsic_pose_one.insert( pose_index_I );
+      if( pose_index_I == poses_id.j )
+        intrinsic_pose_two.insert( pose_index_I );
+      if( pose_index_I == poses_id.k )
+        intrinsic_pose_three.insert( pose_index_I );
     }
 
     // if tracks is not seen by three views, erase it
@@ -723,14 +749,15 @@ bool GlobalSfMRig_Translation_AveragingSolver::Estimate_T_triplet(
   }
 
   // remove unneeded tracks
-  for (std::set<size_t>::const_iterator iterSet = tracksToRemove.begin();
+  for (std::set<IndexT>::const_iterator iterSet = tracksToRemove.begin();
         iterSet != tracksToRemove.end(); ++iterSet)
   {
     rig_tracks.erase(*iterSet);
   }
 
   // check that there is enough correspondences to evaluate model (more or less 50 tracks per image)
-  if ( rig_tracks.size() < 50 * 3 )
+  const IndexT  rigSize = std::max( intrinsic_pose_one.size(), std::max(intrinsic_pose_two.size(), intrinsic_pose_three.size()));
+  if ( rig_tracks.size() < 50 * rigSize)
     return false;
 
   // initialize data for model evaluation
@@ -784,9 +811,9 @@ bool GlobalSfMRig_Translation_AveragingSolver::Estimate_T_triplet(
             bearing_K << normalized_features_provider->feats_per_view.at(idx_view_K).at(feat_K).coords().cast<double>();
 
             // initialize intrinsic group of cameras I and J
-            const IndexT intrinsic_index_I = view_I->id_intrinsic;
-            const IndexT intrinsic_index_J = view_J->id_intrinsic;
-            const IndexT intrinsic_index_K = view_K->id_intrinsic;
+            const IndexT intrinsic_index_I = intrinsic_id_remapping.at(view_I->id_intrinsic);
+            const IndexT intrinsic_index_J = intrinsic_id_remapping.at(view_J->id_intrinsic);
+            const IndexT intrinsic_index_K = intrinsic_id_remapping.at(view_K->id_intrinsic);
 
             // initialize relative translation data container
             const std::vector<double> feat_cam_I = { bearing_I[0], bearing_I[1], intrinsic_index_I, map_poseId_to_contiguous.at(pose_index_I) };
