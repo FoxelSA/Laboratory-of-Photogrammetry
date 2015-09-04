@@ -516,8 +516,10 @@ void GlobalSfMRig_Translation_AveragingSolver::ComputePutativeTranslation_EdgesC
 
         if (bTriplet_estimation)
         {
+        #ifdef DEBUG_TRIPLET
           std::cout << "Triplet solved: \n"
             << "#inliers: " << vec_inliers.size() << std::endl;
+        #endif
 
           if (m_mutexSet.count(Pair(triplet.i, triplet.j)) &&
               m_mutexSet.count(Pair(triplet.i, triplet.k)) &&
@@ -736,12 +738,12 @@ bool GlobalSfMRig_Translation_AveragingSolver::Estimate_T_triplet(
   // initialize data for model evaluation
   std::vector < std::vector < std::vector < double > > > featsAndRigIdPerTrack;
   std::map  <size_t, size_t>  sampleToTrackId;
-  size_t cpt = 0;
 
   // List the tracks to associate a pair of bearing vector to a track Id
+  std::pair<IndexT, IndexT> image_size = std::make_pair(0, 0);
   std::map < size_t, size_t >  map_bearingIdToTrackId;
   for (STLMAPTracks::const_iterator iterTracks = rig_tracks.begin();
-    iterTracks != rig_tracks.end(); ++iterTracks, ++cpt)
+    iterTracks != rig_tracks.end(); ++iterTracks)
   {
     const submapTrack & track = iterTracks->second;
     for (submapTrack::const_iterator iterTrack_I = track.begin();
@@ -751,6 +753,14 @@ bool GlobalSfMRig_Translation_AveragingSolver::Estimate_T_triplet(
       const size_t feat_I       = iterTrack_I->second;
       const View * view_I       = sfm_data.views.at(idx_view_I).get();
       const IndexT pose_index_I = view_I->id_pose;
+
+      // update minimal image size
+      const IndexT area = view_I->ui_width * view_I->ui_height;
+      if( area < image_size.first * image_size.second || image_size.first == 0 || image_size.second == 0)
+      {
+          image_size.first  = view_I->ui_width;
+          image_size.second = view_I->ui_height;
+      }
 
       submapTrack::const_iterator iterTrack_J = iterTrack_I;
       std::advance(iterTrack_J, 1);
@@ -815,7 +825,8 @@ bool GlobalSfMRig_Translation_AveragingSolver::Estimate_T_triplet(
     rigTrackTisXisTrifocalSolver,
     rigTrackTisXisTrifocalSolver,
     rigTrackTrifocalTensorModel> KernelType;
-  KernelType kernel(featsAndRigIdPerTrack, vec_global_R_Triplet, rigRotations, rigOffsets, ThresholdUpperBound);
+  KernelType kernel(featsAndRigIdPerTrack, vec_global_R_Triplet, rigRotations, rigOffsets,
+                    ThresholdUpperBound, image_size);
 
   rigTrackTrifocalTensorModel T;
   std::pair<double,double> acStat = robust::ACRANSAC_RIG(kernel, vec_inliers, ORSA_ITER, &T, dPrecision/minFocal, false );
@@ -919,12 +930,14 @@ bool GlobalSfMRig_Translation_AveragingSolver::Estimate_T_triplet(
   // if there is more than 1/3 of inliers, keep model
   const bool bTest =  ( vec_inliers.size() > 0.33 * rig_tracks.size() ) ;
 
+#ifdef DEBUG_TRIPLET
   {
     std::cout << "Triplet : status: " << bTest
       << " AC: " << dPrecision
       << " inliers % " << double(inliers_tracks.size()) / rig_tracks.size() * 100.0
       << " total putative " << rig_tracks.size() << std::endl;
   }
+#endif
 
   return bTest;
 

@@ -634,7 +634,7 @@ void ReconstructionEngine_RelativeMotions_RigidRig::Compute_Relative_Rotations
               const size_t feat_I = iterTrack_I->second;
               submapTrack::const_iterator iterTrack_J = iterTrack_I;
               std::advance(iterTrack_J, 1);
-              for (iterTrack_J; iterTrack_J != track.end(); ++iterTrack_J)
+              for (; iterTrack_J != track.end(); ++iterTrack_J)
               {
                 const size_t J  = iterTrack_J->first;
                 const size_t feat_J = iterTrack_J->second;
@@ -729,7 +729,7 @@ void ReconstructionEngine_RelativeMotions_RigidRig::Compute_Relative_Rotations
             for (size_t idx=0; idx < vec_inliers.size(); ++idx)
             {
               const size_t trackId = vec_bearingIdToTrackId[vec_inliers[idx]];
-              const submapTrack & track = map_tracks[trackId];
+              const submapTrack & track = map_tracks.at(trackId);
               Observations & obs = structure[idx].obs;
               for (submapTrack::const_iterator it = track.begin(); it != track.end(); ++it)
               {
