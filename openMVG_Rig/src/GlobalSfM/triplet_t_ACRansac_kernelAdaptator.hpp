@@ -209,12 +209,13 @@ public:
   const std::vector<Mat3> & vec_KRi,
   const std::vector<Mat3> & rigRotation,
   const std::vector<Vec3> & rigOffsets,
-  const double ThresholdUpperBound)
+  const double ThresholdUpperBound,
+  const std::pair<IndexT, IndexT> image_dimension)
   : pt_(pt), vec_KR_(vec_KRi),
   vec_rigRotation_(rigRotation),
   vec_rigOffset_(rigOffsets),
   ThresholdUpperBound_(ThresholdUpperBound),
-  logalpha0_(log10(M_PI/1936./2592.))
+  logalpha0_(log10(M_PI/(image_dimension.first*image_dimension.second)))
 {
   //initialize normalized coordinates
   // Normalize points by inverse(K)
