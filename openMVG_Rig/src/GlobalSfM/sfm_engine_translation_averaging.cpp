@@ -498,7 +498,7 @@ void GlobalSfMRig_Translation_AveragingSolver::ComputePutativeTranslation_EdgesC
 
         std::vector<Vec3> vec_tis(3);
         std::vector<size_t> vec_inliers;
-        openMVG::tracks::STLMAPTracks  pose_triplet_tracks;
+        openMVG::tracks::STLMAPTracks pose_triplet_tracks;
 
         const std::string sOutDirectory = "./";
         const bool bTriplet_estimation = Estimate_T_triplet(
@@ -880,15 +880,13 @@ bool GlobalSfMRig_Translation_AveragingSolver::Estimate_T_triplet(
       // initialize view and get intrinsics
       const View * view = sfm_data.GetViews().at(viewIndex).get();
       const cameras::IntrinsicBase *  cam = sfm_data.GetIntrinsics().find(view->id_intrinsic)->second.get();
-      const cameras::Rig_Pinhole_Intrinsic * rig_intrinsicPtr = dynamic_cast< const cameras::Rig_Pinhole_Intrinsic * >(cam);
-      const Vec2  principal_point = rig_intrinsicPtr->principal_point();
+      const cameras::Pinhole_Intrinsic * intrinsicPtr = dynamic_cast< const cameras::Pinhole_Intrinsic * >(cam);
+      const Vec2 principal_point = intrinsicPtr->principal_point();
 
       // get normalized feature
       const PointFeature & pt = normalized_features_provider->feats_per_view.at(viewIndex)[featIndex];
-      PointFeature pt_unnormalized( pt.x() * rig_intrinsicPtr->focal() + principal_point.x(),
-                                    pt.y() * rig_intrinsicPtr->focal() + principal_point.y());
-
-      obs[viewIndex] = Observation(pt_unnormalized.coords().cast<double>(), featIndex);
+      const Vec2 pt_unnormalized( cam->cam2ima(pt.coords().cast<double>()));
+      obs[viewIndex] = Observation(pt_unnormalized, featIndex);
     }
   }
 
@@ -927,7 +925,6 @@ bool GlobalSfMRig_Translation_AveragingSolver::Estimate_T_triplet(
   }
 
   return bTest;
-
 }
 
 } // namespace sfm

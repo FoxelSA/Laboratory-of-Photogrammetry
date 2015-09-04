@@ -431,39 +431,32 @@ bool ReconstructionEngine_RelativeMotions_RigidRig::Adjust()
     << "\t\t pixel residual filter  #3DPoints: " << pointcount_pixelresidual_filter << "\n"
     << "\t\t angular filter         #3DPoints: " << pointcount_angular_filter << std::endl;
 
-  if (!_sLoggingFile.empty())
+  if (b_BA_Status && !_sLoggingFile.empty())
   {
     Save(_sfm_data,
       stlplus::create_filespec(stlplus::folder_part(_sLoggingFile), "structure_03_outlier_removed", "ply"),
       ESfM_Data(EXTRINSICS | STRUCTURE));
   }
 
-  b_BA_Status = bundle_adjustment_obj.Adjust(_sfm_data, true, true, false);
-  if (b_BA_Status && !_sLoggingFile.empty())
-  {
-    Save(_sfm_data,
-      stlplus::create_filespec(stlplus::folder_part(_sLoggingFile), "structure_04_refined_RT_Xi", "ply"),
-      ESfM_Data(EXTRINSICS | STRUCTURE));
-  }
 
   // Check that poses & intrinsic cover some measures (after outlier removal)
   const IndexT minPointPerPose = 12; // 6 min
-  const IndexT minTrackLenght = 3; // 2 min
-  if (eraseUnstablePosesAndObservations(_sfm_data, minPointPerPose, minTrackLenght))
+  const IndexT minTrackLength = 3; // 2 min
+  if (eraseUnstablePosesAndObservations(_sfm_data, minPointPerPose, minTrackLength))
   {
-    // TODO: must ensure that track graph is producing a single connected component
+    // TODO: must ensure that the track graph is producing a single connected component
 
     const size_t pointcount_cleaning = _sfm_data.structure.size();
     std::cout << "Point_cloud cleaning:\n"
       << "\t #3DPoints: " << pointcount_cleaning << "\n";
+  }
 
-    b_BA_Status = bundle_adjustment_obj.Adjust(_sfm_data, true, true, !_bFixedIntrinsics);
-    if (b_BA_Status && !_sLoggingFile.empty())
-    {
-      Save(_sfm_data,
-        stlplus::create_filespec(stlplus::folder_part(_sLoggingFile), "structure_05_unstable_removed", "ply"),
-        ESfM_Data(EXTRINSICS | STRUCTURE));
-    }
+  b_BA_Status = bundle_adjustment_obj.Adjust(_sfm_data, true, true, !_bFixedIntrinsics);
+  if (b_BA_Status && !_sLoggingFile.empty())
+  {
+    Save(_sfm_data,
+      stlplus::create_filespec(stlplus::folder_part(_sLoggingFile), "structure_04_unstable_removed", "ply"),
+      ESfM_Data(EXTRINSICS | STRUCTURE));
   }
 
   return b_BA_Status;

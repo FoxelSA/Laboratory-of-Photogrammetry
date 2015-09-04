@@ -85,14 +85,20 @@ protected:
   );
 
   /// Compute the initial structure of the scene
-  bool Compute_Initial_Structure(matching::PairWiseMatches & tripletWise_matches);
+  bool Compute_Initial_Structure
+  (
+    matching::PairWiseMatches & tripletWise_matches
+  );
 
   // Adjust the scene (& remove outliers)
   bool Adjust();
 
 private:
   /// Compute relative rotations
-  void Compute_Relative_Rotations(openMVG::rotation_averaging::RelativeRotations & vec_relatives_R);
+  void Compute_Relative_Rotations
+  (
+    openMVG::rotation_averaging::RelativeRotations & vec_relatives_R
+  );
 
   //----
   //-- Data
