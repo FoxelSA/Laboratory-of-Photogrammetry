@@ -83,7 +83,7 @@ bool GlobalSfMRig_Translation_AveragingSolver::Run(
   matching::PairWiseMatches & tripletWise_matches
 )
 {
-  // Compute the relative translations and save them to vec_initialRijTijEstimates:
+  // Compute the relative translations and save them to _vec_initialRijTijEstimates:
   Compute_translations(
     sfm_data,
     normalized_features_provider,
@@ -91,23 +91,23 @@ bool GlobalSfMRig_Translation_AveragingSolver::Run(
     map_globalR,
     tripletWise_matches);
 
-  // Keep the largest Biedge connected component graph of relative translations
-  Pair_Set pairs;
-  std::transform(
-    std::begin(vec_initialRijTijEstimates), std::end(vec_initialRijTijEstimates),
-    std::inserter(pairs, std::begin(pairs)),
-    stl::RetrieveKey());
-  const std::set<IndexT> set_remainingIds =
-    openMVG::graph::CleanGraph_KeepLargestBiEdge_Nodes<Pair_Set, IndexT>(pairs, "./");
-  KeepOnlyReferencedElement(set_remainingIds, vec_initialRijTijEstimates);
-
-  std::cout << "#Remaining translations: " << vec_initialRijTijEstimates.size() << std::endl;
-
   // Compute the global translations
-  return Translation_averaging(
+  const bool b_translation = Translation_averaging(
     eTranslationAveragingMethod,
     sfm_data,
     map_globalR);
+
+  // Filter matches to keep only them link to view that have valid poses
+  // (necessary since multiple components can exists before translation averaging)
+  std::set<IndexT> valid_view_ids;
+  for (const auto & view : sfm_data.GetViews())
+  {
+    if (sfm_data.IsPoseAndIntrinsicDefined(view.second.get()))
+      valid_view_ids.insert(view.first);
+  }
+  KeepOnlyReferencedElement(valid_view_ids, tripletWise_matches);
+
+  return b_translation;
 }
 
 bool GlobalSfMRig_Translation_AveragingSolver::Translation_averaging(
@@ -118,15 +118,24 @@ bool GlobalSfMRig_Translation_AveragingSolver::Translation_averaging(
   //-------------------
   //-- GLOBAL TRANSLATIONS ESTIMATION from initial triplets t_ij guess
   //-------------------
+
+  // Keep the largest Biedge connected component graph of relative translations
+  Pair_Set pairs;
+  std::transform(_vec_initialRijTijEstimates.begin(), _vec_initialRijTijEstimates.end(),
+    std::inserter(pairs, pairs.begin()), stl::RetrieveKey());
+  const std::set<IndexT> set_remainingIds =
+    openMVG::graph::CleanGraph_KeepLargestBiEdge_Nodes<Pair_Set, IndexT>(pairs, "./");
+  KeepOnlyReferencedElement(set_remainingIds, _vec_initialRijTijEstimates);
+
   const std::string _sOutDirectory("./");
   {
-    const std::set<IndexT> index = getIndexT(vec_initialRijTijEstimates);
+    const std::set<IndexT> index = getIndexT(_vec_initialRijTijEstimates);
 
     const size_t iNview = index.size();
     std::cout << "\n-------------------------------" << "\n"
       << " Global translations computation: " << "\n"
       << "   - Ready to compute " << iNview << " global translations." << "\n"
-      << "     from #relative translations: " << vec_initialRijTijEstimates.size() << std::endl;
+      << "     from #relative translations: " << _vec_initialRijTijEstimates.size() << std::endl;
 
     if (iNview < 3)
     {
@@ -134,7 +143,7 @@ bool GlobalSfMRig_Translation_AveragingSolver::Translation_averaging(
       return false;
     }
     //-- Update initial estimates from [minId,maxId] to range [0->Ncam]
-    RelativeInfo_Vec vec_initialRijTijEstimates_cpy = vec_initialRijTijEstimates;
+    RelativeInfo_Vec vec_initialRijTijEstimates_cpy = _vec_initialRijTijEstimates;
     const Pair_Set pairs = getPairs(vec_initialRijTijEstimates_cpy);
     Hash_Map<IndexT,IndexT> _reindexForward, _reindexBackward;
     reindex(pairs, _reindexForward, _reindexBackward);
@@ -302,7 +311,7 @@ void GlobalSfMRig_Translation_AveragingSolver::Compute_translations(
     map_globalR,
     normalized_features_provider,
     matches_provider,
-    vec_initialRijTijEstimates,
+    _vec_initialRijTijEstimates,
     tripletWise_matches);
 }
 
@@ -607,9 +616,9 @@ void GlobalSfMRig_Translation_AveragingSolver::ComputePutativeTranslation_EdgesC
   std::cout << "TRIPLET COVERAGE TIMING: " << timeLP_triplet << " seconds" << std::endl;
 
   std::cout << "-------------------------------" << "\n"
-      << "-- #Relative translations estimates: " << vec_initialRijTijEstimates.size()/3
+      << "-- #Relative translations estimates: " << _vec_initialRijTijEstimates.size()/3
       << " computed from " << vec_triplets.size() << " triplets.\n"
-      << "-- resulting in " << vec_initialRijTijEstimates.size() << " translations estimation.\n"
+      << "-- resulting in " << _vec_initialRijTijEstimates.size() << " translations estimation.\n"
       << "-- timing to obtain the relative translations: " << timeLP_triplet << " seconds.\n"
       << "-------------------------------" << std::endl;
 }
