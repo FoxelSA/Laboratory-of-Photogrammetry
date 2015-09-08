@@ -989,13 +989,6 @@ bool GlobalSfMRig_Translation_AveragingSolver::Estimate_T_triplet(
                         && bNorm                                       // the distance between rigs should be at least 10[cm]
                         && (C1_min_magn < 0.1)                         // the minimal magnitude of displacement should be less than 10%
                         && (C2_min_magn < 0.1));                       // the minimal magnitude of displacement should be less than 10%
- if(bTest)
- {
-   std::cout << std::endl << " Triplet inliers " << vec_inliers.size() << " "
-             << " percent " << double(inliers_tracks.size()) / rig_tracks.size() * 100.0 << " "
-             << " infinite norms " << C1_norm_inf << " " << C2_norm_inf << " "
-             << " centers " << C1.transpose() << " " << C2.transpose() << std::endl;
- }
 
 #ifdef DEBUG_TRIPLET
   {
