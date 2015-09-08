@@ -81,6 +81,7 @@ protected:
   bool Compute_Global_Translations
   (
     const Hash_Map<IndexT, Mat3> & global_rotations,
+    const openMVG::rotation_averaging::RelativeRotations & vec_relatives_R,
     matching::PairWiseMatches & tripletWise_matches
   );
 

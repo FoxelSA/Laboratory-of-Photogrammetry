@@ -40,6 +40,7 @@
 #define OPENMVGRIG_SFM_GLOBAL_ENGINE_PIPELINES_GLOBAL_TRANSLATION_AVERAGING_HPP
 
 #include "openMVG/sfm/sfm_data.hpp"
+#include "openMVG/sfm/pipelines/global/GlobalSfM_rotation_averaging.hpp"
 #include "openMVG/multiview/translation_averaging_common.hpp"
 #include "openMVG/sfm/sfm_data_triangulation.hpp"
 #include "openMVG/sfm/pipelines/sfm_features_provider.hpp"
@@ -47,6 +48,8 @@
 #include "openMVG/sfm/pipelines/global/GlobalSfM_translation_averaging.hpp"
 #include "openMVG/tracks/tracks.hpp"
 #include "openMVG/graph/graph.hpp"
+
+using namespace openMVG::rotation_averaging;
 
 namespace openMVG{
 namespace sfm{
@@ -64,6 +67,7 @@ public:
     const Features_Provider * normalized_features_provider,
     const Matches_Provider * matches_provider,
     const Hash_Map<IndexT, Mat3> & map_globalR,
+    const openMVG::rotation_averaging::RelativeRotations & vec_relatives_R,
     matching::PairWiseMatches & tripletWise_matches
   );
 
@@ -78,6 +82,7 @@ private:
     const Features_Provider * normalized_features_provider,
     const Matches_Provider * matches_provider,
     const Hash_Map<IndexT, Mat3> & map_globalR,
+    const openMVG::rotation_averaging::RelativeRotations & vec_relatives_R,
     matching::PairWiseMatches &tripletWise_matches);
 
   //-- Compute the relative translations on the rotations graph.
@@ -87,6 +92,7 @@ private:
   void ComputePutativeTranslation_EdgesCoverage(
     const SfM_Data & sfm_data,
     const Hash_Map<IndexT, Mat3> & map_globalR,
+    const openMVG::rotation_averaging::RelativeRotations & vec_relatives_R,
     const Features_Provider * normalized_features_provider,
     const Matches_Provider * matches_provider,
     RelativeInfo_Vec & vec_initialEstimates,
@@ -105,6 +111,12 @@ private:
     openMVG::tracks::STLMAPTracks & rig_tracks,
     const double ThresholdUpperBound, //Threshold used for the trifocal tensor estimation solver used in AContrario Ransac
     const std::string & sOutDirectory) const;
+
+  // triplet rotation rejection based on angular threshold
+  void TripletRotationRejection(
+    const double max_angular_error,
+    std::vector< graph::Triplet > & vec_triplets,
+    RelativeRotations & relativeRotations) const;
 };
 
 } // namespace sfm

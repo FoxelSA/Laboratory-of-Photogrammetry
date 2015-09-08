@@ -80,6 +80,7 @@ bool GlobalSfMRig_Translation_AveragingSolver::Run(
   const Features_Provider * normalized_features_provider,
   const Matches_Provider * matches_provider,
   const Hash_Map<IndexT, Mat3> & map_globalR,
+  const openMVG::rotation_averaging::RelativeRotations & vec_relatives_R,
   matching::PairWiseMatches & tripletWise_matches
 )
 {
@@ -89,6 +90,7 @@ bool GlobalSfMRig_Translation_AveragingSolver::Run(
     normalized_features_provider,
     matches_provider,
     map_globalR,
+    vec_relatives_R,
     tripletWise_matches);
 
   // Keep the largest Biedge connected component graph of relative translations
@@ -289,6 +291,7 @@ void GlobalSfMRig_Translation_AveragingSolver::Compute_translations(
   const Features_Provider * normalized_features_provider,
   const Matches_Provider * matches_provider,
   const Hash_Map<IndexT, Mat3> & map_globalR,
+  const openMVG::rotation_averaging::RelativeRotations & vec_relatives_R,
   matching::PairWiseMatches &tripletWise_matches)
 {
   std::cout << "\n-------------------------------" << "\n"
@@ -300,6 +303,7 @@ void GlobalSfMRig_Translation_AveragingSolver::Compute_translations(
   ComputePutativeTranslation_EdgesCoverage(
     sfm_data,
     map_globalR,
+    vec_relatives_R,
     normalized_features_provider,
     matches_provider,
     vec_initialRijTijEstimates,
@@ -311,6 +315,7 @@ void GlobalSfMRig_Translation_AveragingSolver::Compute_translations(
 void GlobalSfMRig_Translation_AveragingSolver::ComputePutativeTranslation_EdgesCoverage(
   const SfM_Data & sfm_data,
   const Hash_Map<IndexT, Mat3> & map_globalR,
+  const openMVG::rotation_averaging::RelativeRotations & vec_relatives_R,
   const Features_Provider * normalized_features_provider,
   const Matches_Provider * matches_provider,
   RelativeInfo_Vec & vec_initialEstimates,
@@ -344,8 +349,12 @@ void GlobalSfMRig_Translation_AveragingSolver::ComputePutativeTranslation_EdgesC
     }
   }
   // List putative triplets (from global rotations Ids)
-  const std::vector< graph::Triplet > vec_triplets =
-    graph::tripletListing(rotation_pose_id_graph);
+  std::cout << "triplet listing" << std::endl;
+  std::vector< graph::Triplet > vec_triplets = graph::tripletListing(rotation_pose_id_graph);
+  //-- Rejection triplet that are 'not' identity rotation (error to identity > 5°)
+  RelativeRotations relativeRotations = vec_relatives_R;
+  std::cout << "triplet rejection " << std::endl;
+  TripletRotationRejection(5.0f, vec_triplets, relativeRotations);
   std::cout << "#Triplets: " << vec_triplets.size() << std::endl;
 
   {
@@ -738,11 +747,11 @@ bool GlobalSfMRig_Translation_AveragingSolver::Estimate_T_triplet(
       set_poses_index.insert( pose_index_I );
 
       if( pose_index_I == poses_id.i )
-        intrinsic_pose_one.insert( pose_index_I );
+        intrinsic_pose_one.insert( view_I->id_intrinsic );
       if( pose_index_I == poses_id.j )
-        intrinsic_pose_two.insert( pose_index_I );
+        intrinsic_pose_two.insert( view_I->id_intrinsic );
       if( pose_index_I == poses_id.k )
-        intrinsic_pose_three.insert( pose_index_I );
+        intrinsic_pose_three.insert( view_I->id_intrinsic );
     }
 
     // if tracks is not seen by three views, erase it
@@ -955,7 +964,31 @@ bool GlobalSfMRig_Translation_AveragingSolver::Estimate_T_triplet(
 #endif
 
   // if there is more than 1/3 of inliers, keep model
-  const bool bTest =  ( vec_inliers.size() > 0.33 * rig_tracks.size() ) ;
+  Vec3  C1 = -vec_global_R_Triplet[0] * vec_global_R_Triplet[1].transpose() * T.t2;
+  Vec3  C2 = -vec_global_R_Triplet[0] * vec_global_R_Triplet[2].transpose() * T.t3;
+
+  // check that all components of C1 and C2 have differents order of magnitude
+  const double  C1_norm_inf = std::max( abs(C1(0)), std::max( abs(C1(1)), abs(C1(2))) );
+  const double  C2_norm_inf = std::max( abs(C2(0)), std::max( abs(C2(1)), abs(C2(2))) );
+  const bool   bNorm = ( C1_norm_inf > 1.0e-2) && (C2_norm_inf > 1.0e-2) ;
+
+  // normalize and compute the smallest order of magnitude
+  C1 /= C1_norm_inf ; C2 /= C2_norm_inf;
+  const double  C1_min_magn = std::min( abs(C1(0)), std::min( abs(C1(1)), abs(C1(2))) );
+  const double  C2_min_magn = std::min( abs(C2(0)), std::min( abs(C2(1)), abs(C2(2))) );
+
+  const bool bTest =  ( vec_inliers.size() > 0.33 * rig_tracks.size()  // consider only model with good inlier proportion
+                        && vec_inliers.size() > 30 * rigSize           // there must be enough tracks
+                        && bNorm                                       // the distance between rigs should be at least 10[cm]
+                        && (C1_min_magn < 0.1)                         // the minimal magnitude of displacement should be less than 10%
+                        && (C2_min_magn < 0.1));                       // the minimal magnitude of displacement should be less than 10%
+ if(bTest)
+ {
+   std::cout << std::endl << " Triplet inliers " << vec_inliers.size() << " "
+             << " percent " << double(inliers_tracks.size()) / rig_tracks.size() * 100.0 << " "
+             << " infinite norms " << C1_norm_inf << " " << C2_norm_inf << " "
+             << " centers " << C1.transpose() << " " << C2.transpose() << std::endl;
+ }
 
 #ifdef DEBUG_TRIPLET
   {
@@ -969,6 +1002,72 @@ bool GlobalSfMRig_Translation_AveragingSolver::Estimate_T_triplet(
   return bTest;
 
 }
+void GlobalSfMRig_Translation_AveragingSolver::TripletRotationRejection(
+const double max_angular_error,
+std::vector< graph::Triplet > & vec_triplets,
+RelativeRotations & relativeRotations) const
+{
+  const size_t edges_start_count = relativeRotations.size();
 
+  RelativeRotations_map map_relatives = getMap(relativeRotations);
+  RelativeRotations_map map_relatives_validated;
+
+  // DETECTION OF ROTATION OUTLIERS
+  std::vector< graph::Triplet > vec_triplets_validated;
+
+  std::vector<float> vec_errToIdentityPerTriplet;
+  vec_errToIdentityPerTriplet.reserve(vec_triplets.size());
+  // Compute for each length 3 cycles: the composition error
+  //  Error to identity rotation.
+  for (size_t i = 0; i < vec_triplets.size(); ++i)
+  {
+    const graph::Triplet & triplet = vec_triplets[i];
+    const IndexT I = triplet.i, J = triplet.j , K = triplet.k;
+
+    //-- Find the three rotations
+    const Pair ij(I,J);
+    const Pair ji(J,I);
+
+    Mat3 RIJ = Mat3::Zero();
+    if (map_relatives.find(ij) != map_relatives.end())
+      RIJ = map_relatives.at(ij).Rij;
+    if (map_relatives.find(ji) != map_relatives.end())
+      RIJ = map_relatives.at(ji).Rij.transpose();
+
+    const Pair jk(J,K);
+    const Pair kj(K,J);
+
+    Mat3 RJK = Mat3::Zero();
+    if (map_relatives.find(jk) != map_relatives.end())
+      RJK = map_relatives.at(jk).Rij;
+    if (map_relatives.find(kj) != map_relatives.end())
+      RJK = map_relatives.at(kj).Rij.transpose();
+
+    const Pair ki(K,I);
+    const Pair ik(I,K);
+
+    Mat3 RKI = Mat3::Zero();
+    if (map_relatives.find(ki) != map_relatives.end())
+      RKI = map_relatives.at(ki).Rij;
+    if (map_relatives.find(ik) != map_relatives.end())
+      RKI = map_relatives.at(ik).Rij.transpose();
+
+    const Mat3 Rot_To_Identity = RIJ * RJK * RKI; // motion composition
+    const float angularErrorDegree = static_cast<float>(R2D(getRotationMagnitude(Rot_To_Identity)));
+    vec_errToIdentityPerTriplet.push_back(angularErrorDegree);
+
+    if (angularErrorDegree < max_angular_error)
+    {
+      vec_triplets_validated.push_back(triplet);
+    }
+  }
+
+  // update to keep only useful triplets
+  vec_triplets.clear();
+  vec_triplets = vec_triplets_validated;
+
+  const size_t edges_end_count = relativeRotations.size();
+  std::cout << "\n #Edges removed by triplet inference: " << edges_start_count - edges_end_count << std::endl;
+}
 } // namespace sfm
 } // namespace openMVG

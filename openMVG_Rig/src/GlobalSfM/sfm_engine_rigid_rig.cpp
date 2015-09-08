@@ -159,7 +159,7 @@ bool ReconstructionEngine_RelativeMotions_RigidRig::Process() {
     return false;
   }
   matching::PairWiseMatches  tripletWise_matches;
-  if (!Compute_Global_Translations(global_rotations, tripletWise_matches))
+  if (!Compute_Global_Translations(global_rotations, relatives_R, tripletWise_matches))
   {
     std::cerr << "GlobalSfM:: Translation Averaging failure!" << std::endl;
     return false;
@@ -273,6 +273,7 @@ bool ReconstructionEngine_RelativeMotions_RigidRig::Compute_Global_Rotations
 bool ReconstructionEngine_RelativeMotions_RigidRig::Compute_Global_Translations
 (
   const Hash_Map<IndexT, Mat3> & global_rotations,
+  const openMVG::rotation_averaging::RelativeRotations & relatives_R,
   matching::PairWiseMatches & tripletWise_matches
 )
 {
@@ -284,6 +285,7 @@ bool ReconstructionEngine_RelativeMotions_RigidRig::Compute_Global_Translations
     _normalized_features_provider.get(),
     _matches_provider,
     global_rotations,
+    relatives_R,
     tripletWise_matches);
 
   if (!_sLoggingFile.empty())
