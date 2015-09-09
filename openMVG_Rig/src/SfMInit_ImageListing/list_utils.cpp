@@ -730,7 +730,7 @@ bool computeInstrinsicPerImages(
   const bool    bKeepRepresentativeRigs = false;
 
   // if we use rigid rig structure, keep most representative rigs
-  if( bUseRigidRig || bKeepRepresentativeRigs)
+  if( bKeepRepresentativeRigs)
   {
       keepRepresentativeRigs( imageToRemove,
                               mapSubcamPerTimestamp );
