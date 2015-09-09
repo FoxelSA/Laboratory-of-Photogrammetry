@@ -36,9 +36,9 @@
 # ==============================================================================
 # Build Executable
 # ==============================================================================
-add_executable(main_openMVG2DAV main_openMVG2DAV.cpp)
-target_link_libraries(main_openMVG2DAV ${OPENMVG_LIBRARIES})
+add_executable(openMVGRig_main_openMVG2DAV main_openMVG2DAV.cpp)
+target_link_libraries(openMVGRig_main_openMVG2DAV ${OPENMVG_LIBRARIES})
 
 set(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/software)
 
-install(TARGETS main_openMVG2DAV DESTINATION ${CMAKE_INSTALL_PREFIX}/bin)
+install(TARGETS openMVGRig_main_openMVG2DAV DESTINATION ${CMAKE_INSTALL_PREFIX}/bin)
