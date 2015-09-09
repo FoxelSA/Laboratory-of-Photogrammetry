@@ -78,7 +78,7 @@ int main(int argc, char **argv)
     std::cerr << "Usage: " << argv[0] << '\n'
     << "[-i|--input_file] path to a SfM_Data scene\n"
     << "[-o|--out_file] the output pairlist file\n"
-    << "optional:"
+    << "optional:\n"
     << "[-p|--pose_overlapping] Define the pose neighborhood for matching\n"
     << "\n"
     << std::endl;
@@ -115,7 +115,7 @@ int main(int argc, char **argv)
   // conver the pose graph edges to a view graph
   //---------------------------------------
   std::unordered_multimap<IndexT, IndexT> pose_id_toViewId;
-  std::vector<IndexT> vec_poses;
+  std::set<IndexT> set_poses;
 
   // Get nodes of the pose graph
   for (const auto & viewIter : sfm_data.GetViews())
@@ -123,12 +123,12 @@ int main(int argc, char **argv)
     const View * v = viewIter.second.get();
     assert (viewIter.first == v->id_view);
     pose_id_toViewId.insert( std::make_pair(v->id_pose, v->id_view) );
-    vec_poses.push_back(v->id_pose);
+    set_poses.insert(v->id_pose);
   }
-  std::sort(vec_poses.begin(), vec_poses.end());
+  std::vector<IndexT> vec_poses(set_poses.begin(), set_poses.end());
 
   // Create the 'linear' pose graph pair relationship
-  const Pair_Set pose_pairs = contiguousWithOverlap(vec_poses.size(), i_overlapping);
+  const Pair_Set pose_pairs = contiguousWithOverlap(set_poses.size(), i_overlapping);
 
   // Convert the pose graph to a view graph
   Pair_Set view_pair;
