@@ -39,6 +39,8 @@
 # ==============================================================================
 # Build Executable
 # ==============================================================================
+set(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/software)
+
 add_executable(openMVGRig_GlobalSfM
   sfm_engine_rigid_rig.hpp
   sfm_engine_rigid_rig.cpp
@@ -53,6 +55,9 @@ add_executable(openMVGRig_GlobalSfM
 add_dependencies(openMVGRig_GlobalSfM opengv )
 target_link_libraries(openMVGRig_GlobalSfM opengv ${OPENMVG_LIBRARIES})
 
-set(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/software)
-
 install(TARGETS openMVGRig_GlobalSfM DESTINATION ${CMAKE_INSTALL_PREFIX}/bin)
+
+add_executable(openMVGRig_createPairListMatchFile main_createPairListMatchFile.cpp)
+target_link_libraries(openMVGRig_createPairListMatchFile ${OPENMVG_LIBRARIES})
+
+
