@@ -511,7 +511,7 @@ void GlobalSfMRig_Translation_AveragingSolver::ComputePutativeTranslation_EdgesC
         // Try to estimate this triplet.
         //--
         // update precision to have good value for normalized coordinates
-        double dPrecision = 8.0; // upper bound of the pixel residual
+        double dPrecision = 4.0; // upper bound of the pixel residual
         const double ThresholdUpperBound = 1.0e-2;
 
         std::vector<Vec3> vec_tis(3);
