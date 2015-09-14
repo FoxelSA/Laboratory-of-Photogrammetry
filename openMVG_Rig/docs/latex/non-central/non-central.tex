@@ -161,7 +161,43 @@
     a generalization of the epipolar condition.
     
    \section{Relative Rotation Estimation}
+   
+   In this section, we assume that we know 2D-2D correspondences between two poses. The keypoint is to estimate the relative
+   rotation $R$ and the relative translation $\t$ between two poses. 
+   
+   \subsection{State of the art}
+   
+   This field is quite new, but it more and more explorated. Although, all the methods share the same approach : they try
+   to solve equation \eqref{generalized epipolar}, which has 6 degrees of freedoms. 
+   The most natural approach is to use the a singular-value decomposition to find $R$ and $\t$ in \eqref{generalized epipolar}, as
+   done in \cite{17-points-4587545}. However, this approach generally fails because the equation \eqref{generalized epipolar}
+   has a family of solutions, and hence the solution is not unique anymore (see \cite{17-points-4587545} for a more detailed 
+   explaination). This is major difference between non central cameras and central cameras, because in the central camera case, 
+   the solution is unique up to a scale factor (see \cite{Hartley:2003:MVG:861369} for explanations). \paragraph{}
+   
+   Because the standard linear algorithm does not work in most cases, there is some others methods that have developped during
+   the last years. For example, \cite{Stewenius05solutionsto} uses exactly 6 correspondances in order to solve \eqref{generalized epipolar}.
+   However, this methods is quite difficult to implement. Indeed, it uses Gröbner basis and the 6 points leads to 64 solutions
+   that have to be discarded using different solution. In a practical way, the 6 point method takes munch more time 
+   that the standard linear algorithm, but is more resilient to noise and outliers.
 
+   Recently, Kneip and al. presented a new method based on generalized eigenvalue (GE) decomposition \cite{ge-kneip}. The key idea of 
+   this method is to split \eqref{generalized epipolar} in a rotation estimation using rank minimization approach, 
+   followed by a translation estimation. This methods has the nice property to be more noise and outiler resilient than
+   the 6-point method and the 17-point method. Moreover, GE method is faster than 6-point or 17-point method methods. 
+   However, this method need a good initial estimate of the relative rotation to produce an accurate estimation, and the minimization
+   strategy could be improved using an other method than gradient descent. In pratice, in a RANSAC framework, 
+   the estimated model are of a satisfying quality to be used in a global method. However, the relative pose estimation could
+   be munch improved in order to gain accuracy for the whole global pipeline that we will present later on.
+   
+   \subsection{Relative pose estimation}
+   
+   Actually, in our software, we use the OpenGV library \cite{opengv, opengv-online} in order to evaluate the relative pose between two non-central cameras.
+   OpenGV library is a C++ free software containing various methods to estimate relative and absolute poses for both central and non-central 
+   cameras. In our case, we only use the part related to non-central cameras, which contains an implementation of the 
+   6-points methods solver \cite{Stewenius05solutionsto}, the 17-points solver \cite{17-points-4587545} and the generalized
+   eigenvalue solver \cite{ge-kneip}. In our sofware, we use the generalized eigenvalue software.
+   
     
    \section{Relative translation Estimation}
    
@@ -307,7 +343,7 @@
      \end{aligned}
    \end{equation}
    The equation \eqref{expanded distance} could be split into two inequalities which are easily implemented in linear programming solver such 
-   as OSI-CLP.
+   as OSI-CLP \cite{clp, osi}.
 
    \section{Conclusions}
    
