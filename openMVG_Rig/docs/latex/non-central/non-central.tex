@@ -1,3 +1,7 @@
+% ==========================================================================================================
+%   Document class and packages 
+% ==========================================================================================================
+
 \documentclass[a4paper, 10pt]{article}
 
 \usepackage[latin1]{inputenc}
@@ -13,8 +17,9 @@
 \usepackage{hyperref}
 \hypersetup{colorlinks=false, hidelinks}
 
-\author{ St\'ephane Flotron, Pierre Moulon }
-\title{\textbf{A new Global Pipeline solving the non-central camera SfM}}
+% ==========================================================================================================
+%   Commands 
+% ==========================================================================================================
 
 \renewcommand{\tilde}{\widetilde}
 \renewcommand{\t}{\mathbf{t}}
@@ -29,8 +34,23 @@
 \renewcommand{\P}{\mathbb{P}}
 \newcommand{\I}{\mathbb{I}}
 
+% ==========================================================================================================
+%   Author(s) and Title 
+% ==========================================================================================================
+
+\author{ St\'ephane Flotron, Pierre Moulon }
+\title{\textbf{A new Global Pipeline solving the non-central camera SfM}}
+
+% ==========================================================================================================
+%   Document
+% ==========================================================================================================
+
 \begin{document}
    \maketitle
+   
+% ==========================================================================================================
+%   Preambule
+% ==========================================================================================================
    
    \section{ Preambule }
    
@@ -160,6 +180,10 @@
     which is nothing else than the classical epipolar condition. Therefore \eqref{generalized epipolar} is
     a generalization of the epipolar condition.
     
+% ==========================================================================================================
+%   Relative pose estimation
+% ==========================================================================================================
+    
    \section{Relative Rotation Estimation}
    
    In this section, we assume that we know 2D-2D correspondences between two poses. The keypoint is to estimate the relative
@@ -168,14 +192,14 @@
    \subsection{State of the art}
    
    This field is quite new, but it more and more explorated. Although, all the methods share the same approach : they try
-   to solve equation \eqref{generalized epipolar}, which has 6 degrees of freedoms. 
-   The most natural approach is to use the a singular-value decomposition to find $R$ and $\t$ in \eqref{generalized epipolar}, as
+   to solve equation \eqref{generalized epipolar}, which has 6 degrees of freedom. 
+   The most natural approach to solve \eqref{generalized epipolar} is to use the a singular-value decomposition to find $R$ and $\t$, as
    done in \cite{17-points-4587545}. However, this approach generally fails because the equation \eqref{generalized epipolar}
    has a family of solutions, and hence the solution is not unique anymore (see \cite{17-points-4587545} for a more detailed 
-   explaination). This is major difference between non central cameras and central cameras, because in the central camera case, 
-   the solution is unique up to a scale factor (see \cite{Hartley:2003:MVG:861369} for explanations). \paragraph{}
+   explanation). This is major difference between non central cameras and central cameras, because in the central camera case, 
+   the solution is unique up to a scale factor (see \cite{Hartley:2003:MVG:861369}). \paragraph{}
    
-   Because the standard linear algorithm does not work in most cases, there is some others methods that have developped during
+   Because the standard linear algorithm generally fails, there is some others methods that have developped during
    the last years. For example, \cite{Stewenius05solutionsto} uses exactly 6 correspondances in order to solve \eqref{generalized epipolar}.
    However, this methods is quite difficult to implement. Indeed, it uses Gröbner basis and the 6 points leads to 64 solutions
    that have to be discarded using different solution. In a practical way, the 6 point method takes munch more time 
@@ -185,10 +209,10 @@
    this method is to split \eqref{generalized epipolar} in a rotation estimation using rank minimization approach, 
    followed by a translation estimation. This methods has the nice property to be more noise and outiler resilient than
    the 6-point method and the 17-point method. Moreover, GE method is faster than 6-point or 17-point method methods. 
-   However, this method need a good initial estimate of the relative rotation to produce an accurate estimation, and the minimization
+   However, this method need a good initial estimate of the relative rotation to produce an accurate estimation. And the minimization
    strategy could be improved using an other method than gradient descent. In pratice, in a RANSAC framework, 
    the estimated model are of a satisfying quality to be used in a global method. However, the relative pose estimation could
-   be munch improved in order to gain accuracy for the whole global pipeline that we will present later on.
+   be munch improved in order to gain accuracy for the whole global pipeline that we will present later.
    
    \subsection{Relative pose estimation}
    
@@ -197,7 +221,10 @@
    cameras. In our case, we only use the part related to non-central cameras, which contains an implementation of the 
    6-points methods solver \cite{Stewenius05solutionsto}, the 17-points solver \cite{17-points-4587545} and the generalized
    eigenvalue solver \cite{ge-kneip}. In our sofware, we use the generalized eigenvalue software.
-   
+  
+% ==========================================================================================================
+%   Relative translation estimation
+% ==========================================================================================================
     
    \section{Relative translation Estimation}
    
@@ -342,9 +369,41 @@
        && \leq & \sigma 1_3 -R_i^T C_{k,i} + R_j^T C_{k,j}.
      \end{aligned}
    \end{equation}
-   The equation \eqref{expanded distance} could be split into two inequalities which are easily implemented in linear programming solver such 
+   The equation \eqref{expanded distance} could be split into two inequalities which are easy to implement in a linear programming solver such 
    as OSI-CLP \cite{clp, osi}.
 
+% ==========================================================================================================
+%   Global pipeline
+% ==========================================================================================================
+
+   \section{A global method solving the non-central SfM}
+   
+   Now, we describe the algorithm we develop in order to solve the non-central structure from motion (SfM). 
+   The only input needed is the sub-pose $(R, C)$ of each channels of the camera rig, as the calibration 
+   information of each sensors (camera matrix, optical distorsion, etc.). Moreover, we assume that pairwise
+   matches between images are given as an input to software. We mean that all pixels correspondances between 
+   images pairs are known, and that they are noise-free (i.e. they are filetered using a fundamental
+   or essential filter). \paragraph{}
+   
+   The algorithm we develop is based on the global method used in \cite{moulon-tel-00996935}. The method
+   is well documented in \cite{moulon-tel-00996935}, so we will only describe the main steps of computation.
+   The method we developped consists in 5 main steps :
+   \begin{enumerate}
+       \item  Evaluate the relative rotations between poses using the openGV library.
+       \item  Merge all the relative rotations in order to have the global rotations.
+       \item  Given the global rotation of point 2, evaluate the relative translations per group of 3
+              connected poses using scheme \eqref{distance translation model}.
+       \item  Merge all the estimated relative translations in order to have the global rotations.
+       \item  Do bundle adjustement in order to refine the computed scene and structure.
+   \end{enumerate}
+   We refer to \cite{moulon-tel-00996935} for a detailled description of the fusion of the relative rotation 
+   and translations.
+
+   
+% ==========================================================================================================
+%   Conclusions
+% ==========================================================================================================
+   
    \section{Conclusions}
    
 % ================================================================
