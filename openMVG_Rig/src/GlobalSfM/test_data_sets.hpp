@@ -48,16 +48,18 @@ using namespace std;
 
 // A N-view metric dataset.
 // All points are seen by all cameras.
-struct NViewDataSet {
+struct NPoseDataSet {
   vector<Mat3> _K;   // Internal parameters (fx, fy, etc).
   vector<Mat3> _R;   // Rotation.
   vector<Vec3> _t;   // Translation.
-  vector<Vec3> _C;   // Camera centers.
+  vector<Vec3> _C;   // pose centers.
+  vector<Mat3> _rotations; // rig subcameras rotations
+  vector<Vec3> _offsets; // rig subcameras center
   Mat3X _X;          // 3D points.
   vector<Mat2X> _x;  // Projected points; may have noise added.
   vector<Vecu>  _x_ids;// Indexes of points corresponding to the projections
 
-  size_t _n;  // Actual number of cameras.
+  size_t _n;  // Actual number of poses.
 
   //-- Return P=K*[R|t] for the Inth camera
   Mat34 P(size_t i) const;
@@ -66,7 +68,7 @@ struct NViewDataSet {
   void ExportToPLY(const std::string & out_file_name) const;
 };
 
-struct nViewDatasetConfigurator
+struct nPoseDatasetConfigurator
 {
   /// Internal camera parameters (focal, principal point)
   int _fx, _fy, _cx, _cy;
@@ -75,21 +77,23 @@ struct nViewDatasetConfigurator
   double _dist;
   double _jitter_amount;
 
-  nViewDatasetConfigurator(int fx = 1000,  int fy = 1000,
+  nPoseDatasetConfigurator(int fx = 1000,  int fy = 1000,
                            int cx = 500,   int cy  = 500,
                            double distance = 1.5,
                            double jitter_amount = 0.01 );
 };
 
 /// Place cameras on a circle with point in the center
-NViewDataSet NRealisticCamerasRing(size_t nviews, size_t npoints,
-                                   const nViewDatasetConfigurator
-                                     config = nViewDatasetConfigurator());
+NPoseDataSet NRealisticPosesRing(size_t nposes, size_t nviews,
+                                 size_t rig_size, size_t npoints,
+                                   const nPoseDatasetConfigurator
+                                     config = nPoseDatasetConfigurator());
 
 /// Place cameras on cardiod shape with point in the center
-NViewDataSet NRealisticCamerasCardioid(size_t nviews, size_t npoints,
-                                       const nViewDatasetConfigurator
-                                        config = nViewDatasetConfigurator());
+NPoseDataSet NRealisticPosesCardioid(size_t nposes, size_t nviews,
+                                     size_t rig_size, size_t npoints,
+                                       const nPoseDatasetConfigurator
+                                        config = nPoseDatasetConfigurator());
 
 } // namespace openMVG
 

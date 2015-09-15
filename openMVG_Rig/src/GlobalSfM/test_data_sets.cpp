@@ -41,22 +41,23 @@
 
 #include "openMVG/numeric/numeric.h"
 #include "openMVG/multiview/projection.hpp"
-#include "openMVG/multiview/test_data_sets.hpp"
+#include "./test_data_sets.hpp"
 
 namespace openMVG {
 
 
-nViewDatasetConfigurator::nViewDatasetConfigurator(int fx, int fy,
+nPoseDatasetConfigurator::nPoseDatasetConfigurator(int fx, int fy,
   int cx, int cy, double distance, double jitter_amount):
   _fx(fx), _fy(fy), _cx(cx), _cy(cy), _dist(distance),
   _jitter_amount(jitter_amount)
 {}
 
-NViewDataSet NRealisticCamerasRing(size_t nviews, size_t npoints,
-                                   const nViewDatasetConfigurator config)
+NPoseDataSet NRealisticPosesRing(  size_t nposes, size_t nviews,
+                                   size_t rig_size, size_t npoints,
+                                   const nPoseDatasetConfigurator config)
 {
   //-- Setup a camera circle rig.
-  NViewDataSet d;
+  NPoseDataSet d;
   d._n = nviews;
   d._K.resize(nviews);
   d._R.resize(nviews);
@@ -97,21 +98,21 @@ NViewDataSet NRealisticCamerasRing(size_t nviews, size_t npoints,
   return d;
 }
 
-Mat34 NViewDataSet::P(size_t i)const {
+Mat34 NPoseDataSet::P(size_t i)const {
   assert(i < _n);
   Mat34 P;
   P_From_KRt(_K[i], _R[i], _t[i], &P);
   return P;
 }
 
-void NViewDataSet::ExportToPLY(
+void NPoseDataSet::ExportToPLY(
   const std::string & out_file_name)const {
   std::ofstream outfile;
   outfile.open(out_file_name.c_str(), std::ios_base::out);
   if (outfile.is_open()) {
     outfile << "ply"
      << std::endl << "format ascii 1.0"
-     << std::endl << "comment NViewDataSet export"
+     << std::endl << "comment NPoseDataSet export"
      << std::endl << "comment It shows 3D point structure and cameras"
                   << "+ camera looking direction"
      << std::endl << "element vertex " << _X.cols() + _t.size()*2
@@ -148,11 +149,12 @@ void NViewDataSet::ExportToPLY(
   }
 }
 
-NViewDataSet NRealisticCamerasCardioid(size_t nviews, size_t npoints,
-                                        const nViewDatasetConfigurator config)
+NPoseDataSet NRealisticPosesCardioid(size_t nposes, size_t nviews,
+                                     size_t rig_size, size_t npoints,
+                                        const nPoseDatasetConfigurator config)
 {
   //-- Setup a camera circle rig.
-  NViewDataSet d;
+  NPoseDataSet d;
   d._n = nviews;
   d._K.resize(nviews);
   d._R.resize(nviews);

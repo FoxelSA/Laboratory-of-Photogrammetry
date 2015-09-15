@@ -36,7 +36,7 @@
  *      Attribution" section of <http://foxel.ch/license>.
  */
 
-#include "openMVG/multiview/test_data_sets.hpp"
+#include "./test_data_sets.hpp"
 #include "openMVG/numeric/numeric.h"
 #include "../external/CppUnitLite/TestHarness.h"
 #include "../external/testing/testing.h"
@@ -60,14 +60,16 @@ using namespace lInfinityCV;
 
 TEST(Translation_Structure_L_Infinity, OSICLP_SOLVER) {
 
-  const size_t nViews = 3;
-  const size_t nbPoints = 6;
-  const NViewDataSet d = NRealisticCamerasRing(nViews, nbPoints,
-    nViewDatasetConfigurator(1,1,0,0,5,0)); // Suppose a camera with Unit matrix as K
+  const size_t nPoses = 3;
+  const size_t rig_size = 2;
+  const size_t nViews = 6;
+  const size_t nbPoints = 12;
+  const NPoseDataSet d = NRealisticPosesRing(nPoses, nViews, rig_size, nbPoints,
+    nPoseDatasetConfigurator(1,1,0,0,5,0)); // Suppose a camera with Unit matrix as K
 
   d.ExportToPLY("test_Before_Infinity.ply");
   //-- Test triangulation of all the point
-  NViewDataSet d2 = d;
+  NPoseDataSet d2 = d;
 
   //-- Set to 0 the future computed data to be sure of computation results :
   d2._X.fill(0); //Set _Xi of dataset 2 to 0 to be sure of new data computation
@@ -144,14 +146,16 @@ TEST(Translation_Structure_L_Infinity, OSICLP_SOLVER) {
 
 TEST(Translation_Structure_L_Infinity, OSICLP_SOLVER_K) {
 
+  const size_t nPoses = 3;
+  const size_t rig_size = 2;
   const size_t nViews = 3;
   const size_t nbPoints = 6;
-  const NViewDataSet d = NRealisticCamerasRing(nViews, nbPoints,
-    nViewDatasetConfigurator(1000,1000,500,500,5,0)); // Suppose a camera with Unit matrix as K
+  const NPoseDataSet d = NRealisticPosesRing(nPoses, nViews, rig_size, nbPoints,
+    nPoseDatasetConfigurator(1000,1000,500,500,5,0)); // Suppose a camera with Unit matrix as K
 
   d.ExportToPLY("test_Before_Infinity.ply");
   //-- Test triangulation of all the point
-  NViewDataSet d2 = d;
+  NPoseDataSet d2 = d;
 
   //-- Set to 0 the future computed data to be sure of computation results :
   d2._X.fill(0); //Set _Xi of dataset 2 to 0 to be sure of new data computation
@@ -235,12 +239,12 @@ TEST(Translation_Structure_L_Infinity, MOSEK) {
 
   const size_t nViews = 3;
   const size_t nbPoints = 6;
-  const NViewDataSet d = NRealisticCamerasRing(nViews, nbPoints,
-    nViewDatasetConfigurator(1,1,0,0,5,0)); // Suppose a camera with Unit matrix as K
+  const NPoseDataSet d = NRealisticCamerasRing(nViews, nbPoints,
+    NPoseDatasetConfigurator(1,1,0,0,5,0)); // Suppose a camera with Unit matrix as K
 
   d.ExportToPLY("test_Before_Infinity.ply");
   //-- Test triangulation of all the point
-  NViewDataSet d2 = d;
+  NPoseDataSet d2 = d;
 
   //-- Set to 0 the future computed data to be sure of computation results :
   d2._X.fill(0); //Set _Xi of dataset 2 to 0 to be sure of new data computation
