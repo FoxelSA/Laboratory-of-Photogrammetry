@@ -41,3 +41,4 @@
 # Go to subdirectory
 # ==============================================================================
 add_subdirectory(opengv)
+add_subdirectory(CppUnitLite)

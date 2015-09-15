@@ -60,4 +60,5 @@ install(TARGETS openMVGRig_GlobalSfM DESTINATION ${CMAKE_INSTALL_PREFIX}/bin)
 add_executable(openMVGRig_createPairListMatchFile main_createPairListMatchFile.cpp)
 target_link_libraries(openMVGRig_createPairListMatchFile ${OPENMVG_LIBRARIES})
 
-
+# Unit tests
+UNIT_TEST(openMVG_lInftyCV relative_translation "${OPENMVG_LIBRARIES}")

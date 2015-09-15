@@ -43,6 +43,11 @@ project(openMVG_Rig C CXX)
 add_definitions(-std=c++11)
 
 # ==============================================================================
+# OpenMVG build options
+# ==============================================================================
+OPTION(OpenMVG_RIG_BUILD_TESTS "Build OpenMVG_Rig tests" ON)
+
+# ==============================================================================
 #  C / C++ flags
 # ==============================================================================
 set(CMAKE_CXX_COMPILER c++)
@@ -71,6 +76,27 @@ set(OPENMVG_RIG_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR} )
 # ==============================================================================
 SET(CMAKE_MODULE_PATH
   ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmakeFindModules)
+
+# ==============================================================================
+# Enable cmake UNIT TEST framework
+# ==============================================================================
+IF (OpenMVG_RIG_BUILD_TESTS)
+  ENABLE_TESTING()
+ENDIF (OpenMVG_RIG_BUILD_TESTS)
+# MACRO to ease UnitTesting
+MACRO (UNIT_TEST NAMESPACE NAME EXTRA_LIBS)
+  IF (OpenMVG_RIG_BUILD_TESTS)
+    ADD_EXECUTABLE(${NAMESPACE}_test_${NAME} ${NAME}_test.cpp test_data_sets.cpp test_data_sets.hpp)
+
+    SET_PROPERTY(TARGET ${NAMESPACE}_test_${NAME} PROPERTY FOLDER OpenMVG/test)
+
+    TARGET_LINK_LIBRARIES(${NAMESPACE}_test_${NAME}
+                          ${EXTRA_LIBS} # Extra libs MUST be first.
+                          CppUnitLite ${OPENMVG_LIBRARY_DEPENDENCIES})
+    ADD_TEST(NAME ${NAMESPACE}_test_${NAME} WORKING_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
+             COMMAND $<TARGET_FILE:${NAMESPACE}_test_${NAME}>)
+  ENDIF (OpenMVG_RIG_BUILD_TESTS)
+ENDMACRO (UNIT_TEST)
 
 # ==============================================================================
 # Documentation
