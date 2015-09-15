@@ -186,7 +186,7 @@
     
    \section{Relative Rotation Estimation}
    
-   In this section, we assume that we know 2D-2D correspondences between two poses. The keypoint is to estimate the relative
+   In this section, we assume that we know 2D-2D correspondences between two poses. The aim is to estimate the relative
    rotation $R$ and the relative translation $\t$ between two poses. 
    
    \subsection{State of the art}
@@ -200,27 +200,27 @@
    the solution is unique up to a scale factor (see \cite{Hartley:2003:MVG:861369}). \paragraph{}
    
    Because the standard linear algorithm generally fails, there is some others methods that have developped during
-   the last years. For example, \cite{Stewenius05solutionsto} uses exactly 6 correspondances in order to solve \eqref{generalized epipolar}.
-   However, this methods is quite difficult to implement. Indeed, it uses Gröbner basis and the 6 points leads to 64 solutions
-   that have to be discarded using different solution. In a practical way, the 6 point method takes munch more time 
+   the last years. For example, \cite{Stewenius05solutionsto} uses exactly 6 correspondences in order to solve \eqref{generalized epipolar}.
+   However, this methods is quite difficult to implement. Indeed, it uses Gröbner basis and the 6-points leads to 64 solutions
+   that have to be discarded by using an exhaustive testing of each one. In a practical way, the 6-points method takes much more time 
    that the standard linear algorithm, but is more resilient to noise and outliers.
 
    Recently, Kneip and al. presented a new method based on generalized eigenvalue (GE) decomposition \cite{ge-kneip}. The key idea of 
    this method is to split \eqref{generalized epipolar} in a rotation estimation using rank minimization approach, 
-   followed by a translation estimation. This methods has the nice property to be more noise and outiler resilient than
-   the 6-point method and the 17-point method. Moreover, GE method is faster than 6-point or 17-point method methods. 
+   followed by a translation estimation. This methods has the nice property to be more noise and outlier resilient than
+   the 6-points method and the 17-points method. Moreover, GE method is faster than 6-points or 17-points method methods. 
    However, this method need a good initial estimate of the relative rotation to produce an accurate estimation. And the minimization
    strategy could be improved using an other method than gradient descent. In pratice, in a RANSAC framework, 
    the estimated model are of a satisfying quality to be used in a global method. However, the relative pose estimation could
-   be munch improved in order to gain accuracy for the whole global pipeline that we will present later.
+   be much improved in order to gain accuracy for the whole global pipeline that we will present later.
    
    \subsection{Relative pose estimation}
    
-   Actually, in our software, we use the OpenGV library \cite{opengv, opengv-online} in order to evaluate the relative pose between two non-central cameras.
+   Actually, we use the OpenGV library \cite{opengv, opengv-online} in order to evaluate the relative pose between two non-central cameras.
    OpenGV library is a C++ free software containing various methods to estimate relative and absolute poses for both central and non-central 
    cameras. In our case, we only use the part related to non-central cameras, which contains an implementation of the 
    6-points methods solver \cite{Stewenius05solutionsto}, the 17-points solver \cite{17-points-4587545} and the generalized
-   eigenvalue solver \cite{ge-kneip}. In our sofware, we use the generalized eigenvalue software.
+   eigenvalue solver \cite{ge-kneip}. In our sofware, we use the generalized eigenvalue solver.
   
 % ==========================================================================================================
 %   Relative translation estimation
@@ -381,9 +381,9 @@
    Now, we describe the algorithm we develop in order to solve the non-central structure from motion (SfM). 
    The only input needed is the sub-pose $(R, C)$ of each channels of the camera rig, as the calibration 
    information of each sensors (camera matrix, optical distorsion, etc.). Moreover, we assume that pairwise
-   matches between images are given as an input to software. We mean that all pixels correspondances between 
-   images pairs are known, and that they are noise-free (i.e. they are filetered using a fundamental
-   or essential filter). \paragraph{}
+   matches between images are given as an input to software. We mean that all pixels correspondences between 
+   images pairs are known, and that they are outlier-free (i.e. they are filtered using a robust estimation of
+   the essential/fundamental matrix). \paragraph{}
    
    The algorithm we develop is based on the global method used in \cite{moulon-tel-00996935}. The method
    is well documented in \cite{moulon-tel-00996935}, so we will only describe the main steps of computation.
