@@ -62,7 +62,7 @@ struct NPoseDataSet {
   size_t _n;  // Actual number of poses.
 
   //-- Return P=K*[R|t] for the Inth camera
-  Mat34 P(size_t i) const;
+  Mat34 P(size_t i, size_t j) const;
 
   /// Export in PLY the point structure and camera and camera looking dir.
   void ExportToPLY(const std::string & out_file_name) const;

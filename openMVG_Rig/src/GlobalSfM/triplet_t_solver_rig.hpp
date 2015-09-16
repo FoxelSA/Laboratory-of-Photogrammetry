@@ -457,7 +457,7 @@ struct Rig_Translation_Structure_L1_ConstraintBuilder
   ///  in the openMVG::linearProgramming::LP_Constraints object.
   bool Build(double gamma, openMVG::linearProgramming::LP_Constraints_Sparse & constraint)
   {
-    EncodeRigCiXi(
+    EncodeRigTiXi(
       _M,
       _vec_Ri,
       _rigRotation,

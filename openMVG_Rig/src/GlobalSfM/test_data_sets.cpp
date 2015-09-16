@@ -37,6 +37,7 @@
  */
 
 #include <cmath>
+#include <iostream>
 #include <fstream>
 
 #include "openMVG/numeric/numeric.h"
@@ -58,11 +59,13 @@ NPoseDataSet NRealisticPosesRing(  size_t nposes, size_t nviews,
 {
   //-- Setup a camera circle rig.
   NPoseDataSet d;
-  d._n = nviews;
-  d._K.resize(nviews);
-  d._R.resize(nviews);
-  d._t.resize(nviews);
-  d._C.resize(nviews);
+  d._n = nposes;
+  d._K.resize(rig_size);
+  d._offsets.resize(rig_size);
+  d._rotations.resize(rig_size);
+  d._R.resize(nposes);
+  d._t.resize(nposes);
+  d._C.resize(nposes);
   d._x.resize(nviews);
   d._x_ids.resize(nviews);
 
@@ -71,37 +74,59 @@ NPoseDataSet NRealisticPosesRing(  size_t nposes, size_t nviews,
   d._X *= 0.6;
 
   Vecu all_point_ids(npoints);
+  // initialize point id
   for (size_t j = 0; j < npoints; ++j)
     all_point_ids[j] = j;
 
-  for (size_t i = 0; i < nviews; ++i) {
-    Vec3 camera_center, t, jitter, lookdir;
+  // initialize camera rig intrinsic parameters
+  for (size_t j = 0 ; j < rig_size ; ++j )
+  {
+      Vec3  center, lookdir;
 
-    const double theta = i * 2 * M_PI / nviews;
-    //-- Circle equation
-    camera_center << sin(theta), 0.0, cos(theta); // Y axis UP
-    camera_center *= config._dist;
-    d._C[i] = camera_center;
-
-    jitter.setRandom();
-    jitter *= config._jitter_amount / camera_center.norm();
-    lookdir = -camera_center + jitter;
-
-    d._K[i] << config._fx,           0, config._cx,
+      // initialize camera matrix
+      d._K[j] << config._fx,           0, config._cx,
                         0,  config._fy, config._cy,
                         0,           0,          1;
+
+      // intialize offset and rotations
+      lookdir << 0.0, 0.0, 1.0; // Y axis UP
+      center  << (j - floor(0.5 * rig_size) ) / (double) rig_size, 0.0, 0.0;
+      d._offsets[j] = center ;
+
+      // initialize sub camera rotation
+      d._rotations[j] = LookAt(lookdir);
+  }
+
+  // now initialize 2d correspondences
+  for (size_t i = 0; i < nposes; ++i) {
+    Vec3 pose_center, t, jitter, lookdir;
+
+    const double theta = i * 2 * M_PI / nposes;
+    //-- Circle equation
+    pose_center << sin(theta), 0.0, cos(theta); // Y axis UP
+    pose_center *= config._dist;
+    d._C[i] = pose_center;
+
+    jitter.setRandom();
+    jitter *= config._jitter_amount / pose_center.norm();
+    lookdir = -pose_center + jitter;
+
     d._R[i] = LookAt(lookdir);  // Y axis UP
-    d._t[i] = -d._R[i] * camera_center; // [t]=[-RC] Cf HZ.
-    d._x[i] = Project(d.P(i), d._X);
-    d._x_ids[i] = all_point_ids;
+    d._t[i] = -d._R[i] * pose_center; // [t]=[-RC] Cf HZ.
+    for( size_t j = 0; j < rig_size; ++j )
+    {
+      d._x[i * rig_size + j] = Project(d.P(i, j), d._X);
+      d._x_ids[i * rig_size + j] = all_point_ids;
+    }
   }
   return d;
 }
 
-Mat34 NPoseDataSet::P(size_t i)const {
+Mat34 NPoseDataSet::P(size_t i, size_t j)const {
   assert(i < _n);
+  assert(j < _K.size());
   Mat34 P;
-  P_From_KRt(_K[i], _R[i], _t[i], &P);
+  P_From_KRt(_K[j], _rotations[j]*_R[i], _rotations[j] * _t[i] - _rotations[j] * _offsets[j], &P);
   return P;
 }
 
@@ -115,7 +140,7 @@ void NPoseDataSet::ExportToPLY(
      << std::endl << "comment NPoseDataSet export"
      << std::endl << "comment It shows 3D point structure and cameras"
                   << "+ camera looking direction"
-     << std::endl << "element vertex " << _X.cols() + _t.size()*2
+     << std::endl << "element vertex " << _X.cols() + _t.size()*_K.size()*2
      << std::endl << "property float x"
      << std::endl << "property float y"
      << std::endl << "property float z"
@@ -133,69 +158,28 @@ void NPoseDataSet::ExportToPLY(
 
     //-- Export 3D camera position t = -RC
     for(size_t i = 0; i < _t.size(); ++i) {
-      // Exports the camera position and camera color
-      outfile << (-_R[i].transpose()*_t[i]).transpose()
-        << " " << "0 255 0" << std::endl;
+      for(size_t j = 0; j < _K.size(); ++j)
+      {
+        const Vec3 center = -_R[i].transpose() * _rotations[j].transpose() * ( _rotations[j] * _t[i] - _rotations[j] * _offsets[j] );
+        // Exports the camera position and camera color
+        outfile << center.transpose() << " " << "0 255 0" << std::endl;
+      }
     }
     for(size_t i = 0; i < _t.size(); ++i) {
-      Vec3 test;
-      test << 0, 0 , 0.4;
-      // Exports the camera normal
-      outfile << ((-_R[i].transpose()*_t[i])+
-        (_R[i].transpose()*test)).transpose()
-        << " " << "255 0 0" << std::endl;
+      for(size_t j = 0; j < _K.size(); ++j)
+      {
+        Vec3 test;
+        test << 0, 0 , 0.4;
+
+        const Vec3 center = -_R[i].transpose() * _rotations[j].transpose() * ( _rotations[j] * _t[i] - _rotations[j] * _offsets[j] );
+        // Exports the camera normal
+        outfile << center.transpose() +
+          (_R[i].transpose()*_rotations[j].transpose()*test).transpose()
+          << " " << "255 0 0" << std::endl;
+      }
     }
     outfile.close();
   }
-}
-
-NPoseDataSet NRealisticPosesCardioid(size_t nposes, size_t nviews,
-                                     size_t rig_size, size_t npoints,
-                                        const nPoseDatasetConfigurator config)
-{
-  //-- Setup a camera circle rig.
-  NPoseDataSet d;
-  d._n = nviews;
-  d._K.resize(nviews);
-  d._R.resize(nviews);
-  d._t.resize(nviews);
-  d._C.resize(nviews);
-  d._x.resize(nviews);
-  d._x_ids.resize(nviews);
-
-  d._X.resize(3, npoints);
-  d._X.setRandom();
-  d._X *= 0.6;
-
-  Vecu all_point_ids(npoints);
-  for (size_t j = 0; j < npoints; ++j)
-    all_point_ids[j] = j;
-
-  for (size_t i = 0; i < nviews; ++i) {
-    Vec3 camera_center, t, jitter, lookdir;
-
-    const double theta = i * 2 * M_PI / nviews;
-    //-- Cardioid
-    camera_center <<
-      2*sin(theta)-(sin(2*theta)),
-      0.0,
-      2*cos(theta)-(cos(2*theta)); // Y axis UP
-    camera_center *= config._dist;
-    d._C[i] = camera_center;
-
-    jitter.setRandom();
-    jitter *= config._jitter_amount / camera_center.norm();
-    lookdir = -camera_center + jitter;
-
-    d._K[i] << config._fx,           0, config._cx,
-      0,  config._fy, config._cy,
-      0,           0,          1;
-    d._R[i] = LookAt(lookdir);  // Y axis UP
-    d._t[i] = -d._R[i] * camera_center; // [t]=[-RC] Cf HZ.
-    d._x[i] = Project(d.P(i), d._X);
-    d._x_ids[i] = all_point_ids;
-  }
-  return d;
 }
 
 }  // namespace openMVG
