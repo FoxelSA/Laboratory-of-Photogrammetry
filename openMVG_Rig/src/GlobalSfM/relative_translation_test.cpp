@@ -113,8 +113,8 @@ TEST(Translation_Structure_L_Infinity, OSICLP_SOLVER) {
   {
     size_t cpt = 0;
     for (size_t i = 0; i  < nbPoints; ++i)
-      for(size_t j = 0; j < nPoses; ++j)
-        for(size_t k = 0 ; k < rig_size; ++k )
+      for(size_t k = 0 ; k < rig_size; ++k )
+        for(size_t j = 0; j < nPoses; ++j)
         {
           megaMat(0, cpt) = d2._x[j * rig_size + k].col(i)(0); // feature x
           megaMat(1, cpt) = d2._x[j * rig_size + k].col(i)(1); // feature y
@@ -135,8 +135,6 @@ TEST(Translation_Structure_L_Infinity, OSICLP_SOLVER) {
 #else
     OSI_CLP_SolverWrapper LPsolver(static_cast<int>(vec_solution.size()));
 #endif
-
-    double gamma = 0.006;
 
     Rig_Translation_Structure_L1_ConstraintBuilder cstBuilder(d2._R, megaMat, d2._rotations, d2._offsets);
     EXPECT_TRUE ( (BisectionLP<Rig_Translation_Structure_L1_ConstraintBuilder, LP_Constraints_Sparse>(
@@ -161,7 +159,15 @@ TEST(Translation_Structure_L_Infinity, OSICLP_SOLVER) {
       //-- Now the Xi :
       for (size_t i=0; i < nbPoints; ++i) {
         size_t index = 3*nPoses;
+#ifdef USE_TI_XI_SCHEME
         d2._X.col(i) = Vec3(vec_solution[index+i*3], vec_solution[index+i*3+1], vec_solution[index+i*3+2]);
+#else
+        Vec3  bearing_vector ;
+        bearing_vector << d2._x[0].col(i)(0), d2._x[0].col(i)(1), 1.0;
+        const Vec3  X_from_depth = vec_solution[index + i*3] * d2._R[0].transpose() * d2._rotations[0].transpose() * bearing_vector
+                                   + d2._R[0].transpose() * d2._offsets[0] + d2._C[0];
+        d2._X.col(i) = X_from_depth;
+#endif
       }
     }
 
@@ -237,8 +243,8 @@ TEST(Translation_Structure_L_Infinity, OSICLP_SOLVER_K) {
   {
     size_t cpt = 0;
     for (size_t i = 0; i  < nbPoints; ++i)
-      for(size_t j = 0; j < nPoses; ++j)
-        for(size_t k = 0 ; k < rig_size; ++k )
+      for(size_t k = 0 ; k < rig_size; ++k )
+        for(size_t j = 0; j < nPoses; ++j)
         {
           //compute projection matrices
           Vec3 pt;
@@ -289,7 +295,15 @@ TEST(Translation_Structure_L_Infinity, OSICLP_SOLVER_K) {
       //-- Now the Xi :
       for (size_t i=0; i < nbPoints; ++i) {
         size_t index = 3*nPoses;
+#ifdef USE_TI_XI_SCHEME
         d2._X.col(i) = Vec3(vec_solution[index+i*3], vec_solution[index+i*3+1], vec_solution[index+i*3+2]);
+#else
+        Vec3  bearing_vector ;
+        bearing_vector << d2._x[0].col(i)(0), d2._x[0].col(i)(1), 1.0;
+        const Vec3  X_from_depth = vec_solution[index + i*3] * d2._R[0].transpose() * d2._rotations[0].transpose() * d2._K[0].inverse() * bearing_vector
+                                   + d2._R[0].transpose() * d2._offsets[0] + d2._C[0];
+        d2._X.col(i) = X_from_depth;
+#endif
       }
     }
 
@@ -311,92 +325,6 @@ TEST(Translation_Structure_L_Infinity, OSICLP_SOLVER_K) {
 
   d2.ExportToPLY("test_After_Infinity.ply");
 }
-
-#ifdef OPENMVG_HAVE_MOSEK
-TEST(Translation_Structure_L_Infinity, MOSEK) {
-
-  const size_t nViews = 3;
-  const size_t nbPoints = 6;
-  const NPoseDataSet d = NRealisticCamerasRing(nViews, nbPoints,
-    NPoseDatasetConfigurator(1,1,0,0,5,0)); // Suppose a camera with Unit matrix as K
-
-  d.ExportToPLY("test_Before_Infinity.ply");
-  //-- Test triangulation of all the point
-  NPoseDataSet d2 = d;
-
-  //-- Set to 0 the future computed data to be sure of computation results :
-  d2._X.fill(0); //Set _Xi of dataset 2 to 0 to be sure of new data computation
-  fill(d2._t.begin(), d2._t.end(), Vec3(0.0,0.0,0.0));
-
-  //Create the mega matrix
-  Mat megaMat(4, d._n*d._x[0].cols());
-  {
-    size_t cpt = 0;
-    for (size_t i=0; i<d._n;++i)
-    {
-      const size_t camIndex = i;
-      for (size_t j=0; j<d._x[0].cols(); ++j)
-      {
-        megaMat(0,cpt) = d._x[camIndex].col(j)(0);
-        megaMat(1,cpt) = d._x[camIndex].col(j)(1);
-        megaMat(2,cpt) = j;
-        megaMat(3,cpt) = camIndex;
-        cpt++;
-      }
-    }
-  }
-
-  // Solve the problem and check that fitted value are good enough
-  {
-    std::vector<double> vec_solution((nViews + nbPoints)*3);
-
-    MOSEK_SolveWrapper wrapperMosek(vec_solution.size());
-    Translation_Structure_L1_ConstraintBuilder cstBuilder( d._R, megaMat);
-    EXPECT_TRUE(
-      (BisectionLP<Translation_Structure_L1_ConstraintBuilder, LP_Constraints_Sparse>(
-      wrapperMosek,
-      cstBuilder,
-      &vec_solution,
-      1.0,
-      0.0))
-    );
-
-    // Move computed value to dataset for residual estimation.
-    {
-      //-- Fill the ti
-      for (size_t i=0; i < nViews; ++i)
-      {
-        size_t index = i*3;
-        d2._t[i] = Vec3(vec_solution[index], vec_solution[index+1], vec_solution[index+2]);
-        // Change Ci to -Ri*Ci
-        d2._C[i] = -d2._R[i] * d2._t[i];
-      }
-
-      //-- Now the Xi :
-      for (size_t i=0; i < nbPoints; ++i) {
-        size_t index = 3*nViews;
-        d2._X.col(i) = Vec3(vec_solution[index+i*3], vec_solution[index+i*3+1], vec_solution[index+i*3+2]);
-      }
-    }
-
-    // Compute residuals L2 from estimated parameter values :
-    Vec2 xk, xsum(0.0,0.0);
-    for (size_t i = 0; i < d2._n; ++i) {
-      for(size_t k = 0; k < d._x[0].cols(); ++k)
-      {
-        xk = Project(d2.P(i), Vec3(d2._X.col(k)));
-        xsum += Vec2(( xk - d2._x[i].col(k)).array().pow(2));
-      }
-    }
-    double dResidual2D = (xsum.array().sqrt().sum());
-
-    // Check that 2D re-projection and 3D point are near to GT.
-    EXPECT_NEAR(0.0, dResidual2D, 1e-4);
-  }
-
-  d2.ExportToPLY("test_After_Infinity.ply");
-}
-#endif // OPENMVG_HAVE_MOSEK
 
 /* ************************************************************************* */
 int main() { TestResult tr; return TestRegistry::runAllTests(tr);}

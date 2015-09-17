@@ -200,11 +200,11 @@ void EncodeRigCiXi
 
   assert(Nrig == Ri.size());
 
-  A.resize( 6 * Nobs * N3D, 3 * (N3D + Nrig) );
+  A.resize( 6 * Nobs, 3 * (N3D + Nrig) );
 
-  C.resize( 6 * Nobs * N3D, 1);
+  C.resize( 6 * Nobs, 1);
   C.fill(0.0);
-  vec_sign.resize(6 * Nobs * N3D + 3);
+  vec_sign.resize(6 * Nobs );
 
   const size_t transStart = 0;
   const size_t pointStart = transStart + 3*Nrig;
@@ -223,7 +223,7 @@ void EncodeRigCiXi
   double maxAngle = 0.0;
 
   Vec3 b0, b1, b2;
-  for (size_t k = 0; k < N3D ; ++k)
+  for (size_t k = 0; k < Nobs/3 ; ++k)
   {
     // define pose index
     const size_t  pose_I = 3*k;
@@ -264,14 +264,14 @@ void EncodeRigCiXi
   // update lower bound of depth
   for ( size_t l = 0 ; l < N3D; ++l )
   {
-    vec_bounds[XVAR(l,0)] = std::make_pair(1.0 / maxAngle, (double)1e+30);
-    vec_bounds[XVAR(l,1)] = std::make_pair(1.0 / maxAngle, (double)1e+30);
-    vec_bounds[XVAR(l,2)] = std::make_pair(1.0 / maxAngle, (double)1e+30);
+    vec_bounds[XVAR(l,0)] = std::make_pair(1.0 / minAngle, (double)1e+30);
+    vec_bounds[XVAR(l,1)] = std::make_pair(1.0 / minAngle, (double)1e+30);
+    vec_bounds[XVAR(l,2)] = std::make_pair(1.0 / minAngle, (double)1e+30);
   }
 
   size_t rowpos = 0;
   // Add the cheirality conditions (R_c*R_i*X_j + R_c*T_i + t_c)_3 + Z_ij >= 1
-  for (size_t k = 0; k < N3D ; ++k)
+  for (size_t k = 0; k < Nobs/3 ; ++k)
   {
     // define pose index
     const size_t  pose_I = 3*k;
@@ -307,7 +307,7 @@ void EncodeRigCiXi
     const Vec3  R_c2 = R2 * rigOffsets[M(3, pose_K)];
 
     // 3D point index
-    const size_t  pointIndex = M(2,3*k);
+    const size_t  pointIndex = M(2, pose_I);
 
     /**************************************************************
     * a 3d point originated from a bearing vector \b
@@ -457,7 +457,7 @@ struct Rig_Translation_Structure_L1_ConstraintBuilder
   ///  in the openMVG::linearProgramming::LP_Constraints object.
   bool Build(double gamma, openMVG::linearProgramming::LP_Constraints_Sparse & constraint)
   {
-    EncodeRigTiXi(
+    EncodeRigCiXi(
       _M,
       _vec_Ri,
       _rigRotation,
