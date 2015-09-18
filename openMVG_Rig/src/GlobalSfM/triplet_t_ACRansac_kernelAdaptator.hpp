@@ -164,9 +164,9 @@ namespace openMVG{
       OSI_CLP_SolverWrapper LPsolver(static_cast<int>(vec_solution.size()));
       #endif
 
-      Rig_Translation_Structure_L1_ConstraintBuilder cstBuilder(vec_KR, megaMat, rigRotation, rigOffsets);
+      Rig_Center_Structure_L1_ConstraintBuilder cstBuilder(vec_KR, megaMat, rigRotation, rigOffsets);
       double gamma;
-      if (BisectionLP<Rig_Translation_Structure_L1_ConstraintBuilder, LP_Constraints_Sparse>(
+      if (BisectionLP<Rig_Center_Structure_L1_ConstraintBuilder, LP_Constraints_Sparse>(
         LPsolver,
         cstBuilder,
         &vec_solution,
