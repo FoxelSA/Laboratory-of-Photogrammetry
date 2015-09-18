@@ -512,8 +512,11 @@ void GlobalSfMRig_Translation_AveragingSolver::ComputePutativeTranslation_EdgesC
         //--
         // update precision to have good value for normalized coordinates
         double dPrecision = 4.0; // upper bound of the pixel residual
-        const double ThresholdUpperBound = 1.0e-2;
-
+#ifdef USE_L_INFINITY_TRANSLATION
+        const double ThresholdUpperBound = 1.5;     // maximal reprojection error in pixels
+#else
+        const double ThresholdUpperBound = 1.0e-2;  // maximal distance between 3D points in meters
+#endif
         std::vector<Vec3> vec_tis(3);
         std::vector<size_t> vec_inliers;
         openMVG::tracks::STLMAPTracks pose_triplet_tracks;
@@ -870,8 +873,14 @@ bool GlobalSfMRig_Translation_AveragingSolver::Estimate_T_triplet(
     rigTrackTisXisTrifocalSolver,
     rigTrackTisXisTrifocalSolver,
     rigTrackTrifocalTensorModel> KernelType;
+
+#ifdef USE_L_INFINITY_TRANSLATION
+  KernelType kernel(featsAndRigIdPerTrack, vec_global_R_Triplet, rigRotations, rigOffsets,
+                    ThresholdUpperBound/minFocal, image_size);
+#else
   KernelType kernel(featsAndRigIdPerTrack, vec_global_R_Triplet, rigRotations, rigOffsets,
                     ThresholdUpperBound, image_size);
+#endif
 
   rigTrackTrifocalTensorModel T;
   std::pair<double,double> acStat = robust::ACRANSAC_RIG(kernel, vec_inliers, ORSA_ITER, &T, dPrecision/minFocal, false );
