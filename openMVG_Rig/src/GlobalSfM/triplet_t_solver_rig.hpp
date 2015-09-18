@@ -264,9 +264,9 @@ void EncodeRigCiXi
   // update lower bound of depth
   for ( size_t l = 0 ; l < N3D; ++l )
   {
-    vec_bounds[XVAR(l,0)] = std::make_pair(1.0 / minAngle, (double)1e+30);
-    vec_bounds[XVAR(l,1)] = std::make_pair(1.0 / minAngle, (double)1e+30);
-    vec_bounds[XVAR(l,2)] = std::make_pair(1.0 / minAngle, (double)1e+30);
+    vec_bounds[XVAR(l,0)] = std::make_pair(1.0 / maxAngle, (double)1e+30);
+    vec_bounds[XVAR(l,1)] = std::make_pair(1.0 / maxAngle, (double)1e+30);
+    vec_bounds[XVAR(l,2)] = std::make_pair(1.0 / maxAngle, (double)1e+30);
   }
 
   size_t rowpos = 0;
