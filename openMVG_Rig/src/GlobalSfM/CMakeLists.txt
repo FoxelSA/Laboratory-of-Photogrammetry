@@ -61,4 +61,5 @@ add_executable(openMVGRig_createPairListMatchFile main_createPairListMatchFile.c
 target_link_libraries(openMVGRig_createPairListMatchFile ${OPENMVG_LIBRARIES})
 
 # Unit tests
-UNIT_TEST(openMVG_lInftyCV relative_translation "${OPENMVG_LIBRARIES}")
+UNIT_TEST(openMVG_lInftyCV relative_translation      "${OPENMVG_LIBRARIES}")
+UNIT_TEST(openMVG          solver_non_central_kernel "${OPENMVG_LIBRARIES}")
