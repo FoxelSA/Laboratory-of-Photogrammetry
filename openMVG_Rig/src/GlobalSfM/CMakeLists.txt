@@ -55,6 +55,18 @@ add_executable(openMVGRig_GlobalSfM
 add_dependencies(openMVGRig_GlobalSfM opengv )
 target_link_libraries(openMVGRig_GlobalSfM opengv ${OPENMVG_LIBRARIES})
 
+add_library(openMVG_rig
+  sfm_engine_rigid_rig.hpp
+  sfm_engine_rigid_rig.cpp
+  sfm_robust_relative_pose_rig.hpp
+  sfm_robust_relative_pose_rig.cpp
+  sfm_engine_translation_averaging.hpp
+  sfm_engine_translation_averaging.cpp
+  triplet_t_ACRansac_kernelAdaptator.hpp
+  triplet_t_solver_rig.hpp)
+
+target_link_libraries(openMVG_rig ${OPENMVG_LIBRARIES} opengv)
+
 install(TARGETS openMVGRig_GlobalSfM DESTINATION ${CMAKE_INSTALL_PREFIX}/bin)
 
 add_executable(openMVGRig_createPairListMatchFile main_createPairListMatchFile.cpp)
@@ -62,4 +74,4 @@ target_link_libraries(openMVGRig_createPairListMatchFile ${OPENMVG_LIBRARIES})
 
 # Unit tests
 UNIT_TEST(openMVG_lInftyCV relative_translation      "${OPENMVG_LIBRARIES}")
-UNIT_TEST(openMVG          solver_non_central_kernel "${OPENMVG_LIBRARIES}")
+UNIT_TEST(openMVG          solver_non_central_kernel "${OPENMVG_LIBRARIES};opengv;openMVG_rig")

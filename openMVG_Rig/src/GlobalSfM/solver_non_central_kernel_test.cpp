@@ -1,42 +1,205 @@
+/*
+ * relative_translation_test
+ *
+ * Copyright (c) 2014-2015 FOXEL SA - http://foxel.ch
+ * Please read <http://foxel.ch/license> for more information.
+ *
+ *
+ * Author(s):
+ *
+ *      Stephane Flotron <s.flotron@foxel.ch>
+ *
+ * This file is part of the FOXEL project <http://foxel.ch>.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ *
+ * Additional Terms:
+ *
+ *      You are required to preserve legal notices and author attributions in
+ *      that material or in the Appropriate Legal Notices displayed by works
+ *      containing it.
+ *
+ *      You are required to attribute the work as explained in the "Usage and
+ *      Attribution" section of <http://foxel.ch/license>.
+ */
 
-// Copyright (c) 2010 libmv authors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to
-// deal in the Software without restriction, including without limitation the
-// rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
-// sell copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-// FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
-// IN THE SOFTWARE.
-
-
-// Copyright (c) 2012, 2013 Pierre MOULON.
-
-// This Source Code Form is subject to the terms of the Mozilla Public
-// License, v. 2.0. If a copy of the MPL was not distributed with this
-// file, You can obtain one at http://mozilla.org/MPL/2.0/.
-
-#include "openMVG/multiview/essential.hpp"
-#include "openMVG/multiview/solver_essential_kernel.hpp"
+#include "./sfm_robust_relative_pose_rig.hpp"
 #include "openMVG/multiview/projection.hpp"
 #include "../external/testing/testing.h"
 
 #include "./test_data_sets.hpp"
 
 using namespace openMVG;
+using namespace opengv;
 
+/* to check
+ * 1) a model is evaluated
+ * 2) computed model (difference between rotations + translation )
+ * 3) reprojection error is small
+ */
 
 TEST(GeRelativePose, GeRelativePose_Kernel) {
+
+  // Use the Generalized eigenvalue solver to solve pose problem
+  typedef openMVG::noncentral::kernel::GePointSolver SolverType;
+
+  int focal = 1;
+  int principal_Point = 0;
+
+  // initialize structure
+  const size_t nPoses = 8;
+  const size_t rig_size = 3;
+  const size_t nViews = rig_size * nPoses;
+  const size_t nbPoints = SolverType::MINIMUM_SAMPLES;
+
+  //-- Setup a circular camera rig and assert that GE relative pose works.
+  const NPoseDataSet d = NRealisticPosesRing(nPoses, nViews, rig_size, nbPoints,
+    nPoseDatasetConfigurator(focal,focal,principal_Point,principal_Point,5,0)); // Suppose a camera with Unit matrix as K
+
+  d.ExportToPLY("test_Before_Pose_Estimation.ply");
+  //-- Test triangulation of all the point
+  NPoseDataSet d2 = d;
+
+  // check that the scene is well constructed
+  double  triangulation_error = 0.0;
+  for (size_t i = 0; i  < nbPoints; ++i)
+  {
+    // Triangulate and return the reprojection error
+    Triangulation triangulationObj;
+    std::vector < std::pair <Mat34, Vec2> >  views;
+
+    for(size_t j = 0; j < nPoses; ++j)
+      for(size_t k = 0 ; k < rig_size; ++k )
+      {
+        //compute projection matrices
+        Vec2 pt;
+        pt << d2._x[j * rig_size + k].col(i)(0), d2._x[j * rig_size + k].col(i)(1);
+        views.push_back(std::make_pair ( d.P(j,k), pt ) );
+      }
+
+    // update triangulation object
+    for( size_t i = 0 ; i < views.size(); ++i )
+      triangulationObj.add ( views[i].first, views[i].second );
+
+    const Vec3 X = triangulationObj.compute();
+    triangulation_error += (X -d._X.col(i)).norm();
+  }
+
+  // Check that triangulation point are near to the inital data
+  EXPECT_NEAR(0.0, triangulation_error, 1e-10);
+
+  // initialize opengv offsets and rotations
+  opengv::translations_t  offsets;
+  opengv::rotations_t     rotations;
+  for(int i=0; i < rig_size; ++i )
+  {
+      offsets.push_back(d._offsets[i]);
+      rotations.push_back(d._rotations[i].transpose());
+  }
+
+  // evaluate models
+  for(int i=1; i < nPoses; ++i)
+  {
+    // initialize structures used for matching between rigs
+    opengv::bearingVectors_t bearingVectorsRigOne, bearingVectorsRigTwo;
+    std::vector<int> camCorrespondencesRigOne, camCorrespondencesRigTwo;
+
+    // check that the scene is well constructed
+    triangulation_error = 0.0;
+
+    for(int j=0; j < nbPoints; ++j )
+    {
+      // Triangulate and return the reprojection error
+      Triangulation triangulationObj;
+      std::vector < std::pair <Mat34, Vec2> >  views;
+
+      for(int k=0; k < rig_size; ++k )
+      {
+        //compute projection matrices
+        Vec2 pt;
+        pt << d2._x[k].col(j)(0), d2._x[k].col(j)(1);
+        views.push_back(std::make_pair ( d2.P(0,k), pt ) );
+
+        for( int l=0; l < rig_size; ++l )
+        {
+          //compute projection matrices
+          if( k == rig_size-1){
+          Vec2 pt2;
+          pt2 << d2._x[i * rig_size + l].col(j)(0), d2._x[i * rig_size + l].col(j)(1);
+          views.push_back(std::make_pair ( d2.P(i,l), pt2 ) );
+          }
+
+          // update sub camera index lists
+          camCorrespondencesRigOne.push_back(k);
+          camCorrespondencesRigTwo.push_back(l);
+
+          // update bearing vectors lists
+          opengv::bearingVector_t  bearing_vector_0;
+          opengv::bearingVector_t  bearing_vector_1;
+
+          bearing_vector_0 << d2._x[k].col(j)(0), d2._x[k].col(j)(1), 1.0;
+          bearing_vector_1 << d2._x[i*rig_size+l].col(j)(0), d2._x[i*rig_size+l].col(j)(1), 1.0;
+
+          bearing_vector_0.normalize();
+          bearingVectorsRigOne.push_back( bearing_vector_0 );
+
+          bearing_vector_1.normalize();
+          bearingVectorsRigTwo.push_back( bearing_vector_1 );
+        }
+      }
+
+      // update triangulation object
+      for( size_t n = 0 ; n < views.size(); ++n )
+        triangulationObj.add ( views[n].first, views[n].second );
+
+      const Vec3 X = triangulationObj.compute();
+      triangulation_error += (X -d._X.col(j)).norm();
+
+    }
+
+    // Check that triangulation point are near to the inital data
+    EXPECT_NEAR(0.0, triangulation_error, 1e-10);
+
+    // Define kernel
+    typedef openMVG::robust::ACKernelAdaptorRigPose<
+         SolverType,
+         openMVG::noncentral::kernel::RigAngularError,
+         transformation_t>
+         KernelType;
+
+    KernelType kernel(  bearingVectorsRigOne,
+                        bearingVectorsRigTwo,
+                        camCorrespondencesRigOne,
+                        camCorrespondencesRigTwo,
+                        offsets,
+                        rotations);
+
+    std::vector<opengv::transformation_t> models;
+    vector<size_t> samples;
+
+    for (size_t k = 0; k < bearingVectorsRigOne.size() ; ++k) {
+       samples.push_back(k);
+     }
+
+     kernel.Fit(samples, &models);
+     d2._R[i] = models[0].block<3,3>(0,0).transpose();
+     std::cout << d2._R[i] << std::endl << d._R[i] << std::endl << std::endl;
+     d2._C[i] = d2._R[0].transpose() * models[0].col(3) + d2._C[0];
+  }
+  d2.ExportToPLY("test_After_Pose_Estimation.ply");
+
 }
 
 TEST(GeRelativePose, GeRelativePose_Kernel_K ) {

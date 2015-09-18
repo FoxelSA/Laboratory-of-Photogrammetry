@@ -53,6 +53,97 @@
 #include "opengv/relative_pose/NoncentralRelativeAdapter.hpp"
 #include "opengv/sac_problems/relative_pose/NoncentralRelativePoseSacProblem.hpp"
 
+/*************************
+ *
+ *  Definition of AC ransac kernel adaptor for rig relative poses
+ *
+ ************************
+  */
+
+namespace openMVG {
+  namespace robust{
+
+   using namespace opengv;
+    /// Rig Pose Kernel adaptator for the A contrario model estimator
+    template <typename SolverArg,
+      typename ErrorArg,
+      typename ModelArg = transformation_t >
+    class ACKernelAdaptorRigPose
+    {
+    public:
+      typedef SolverArg Solver;
+      typedef ModelArg  Model;
+      typedef ErrorArg ErrorT;
+
+      ACKernelAdaptorRigPose(
+        const bearingVectors_t & b1,
+        const bearingVectors_t & b2,
+        const std::vector<int> & scIdOne,
+        const std::vector<int> & scIdTwo,
+        const translations_t & rigOffsets,
+        const rotations_t & rigRotations )
+        : b1_(b1), b2_(b2),
+          scIdOne_(scIdOne), scIdTwo_(scIdTwo),
+          offSets(rigOffsets), rotations(rigRotations),
+          logalpha0_(log10(M_PI))
+    {
+        assert(b1_.size() == b2_.size());
+        logalpha0_ = log10(0.5);
+      }
+
+      enum { MINIMUM_SAMPLES = Solver::MINIMUM_SAMPLES };
+      enum { MAX_MODELS = Solver::MAX_MODELS };
+
+      void Fit(const std::vector<size_t> &samples, std::vector<Model> *models)
+      const {
+        //create non-central relative adapter
+        relative_pose::NoncentralRelativeAdapter adapter(
+              b1_, b2_, scIdOne_ , scIdTwo_,
+              offSets, rotations);
+
+        Solver::Solve(adapter, models, samples);
+      }
+
+      void Errors(const Model & model, std::vector<double> & vec_errors) const
+      {
+        //create non-central relative adapter
+        relative_pose::NoncentralRelativeAdapter adapter(
+              b1_, b2_, scIdOne_ , scIdTwo_,
+              offSets, rotations);
+
+        vec_errors.resize(b1_.size());
+        for (size_t sample = 0; sample < b1_.size(); ++sample)
+          vec_errors[sample] = ErrorT::Error(sample, model, adapter);
+      }
+
+      double Error(size_t sample, const Model & model) const
+      {
+        //create non-central relative adapter
+        relative_pose::NoncentralRelativeAdapter adapter(
+              b1_, b2_, scIdOne_ , scIdTwo_,
+              offSets, rotations);
+
+        return ErrorT::Error(sample, model, adapter);
+      }
+
+      size_t NumSamples() const { return b1_.size(); }
+      void Unnormalize(Model * model) const {}
+      double logalpha0() const {return logalpha0_;}
+      double multError() const {return 0.5;} // angle vs. angle error
+      Mat3 normalizer1() const {return Mat3::Identity();}
+      Mat3 normalizer2() const {return Mat3::Identity();}
+      double unormalizeError(double val) const { return val; }
+
+    private:
+      bearingVectors_t b1_, b2_; // bearing vectors.
+      std::vector<int> scIdOne_, scIdTwo_ ; // cam correspondences
+      translations_t offSets ; // camera position in rigid rig frame
+      rotations_t  rotations ; // rig subcamera orientation
+      double logalpha0_; // Alpha0 is used to make the error adaptive to the image size
+    };
+  } // end ROBUST
+} // end openMVG
+
 namespace openMVG {
 namespace noncentral {
 namespace kernel {
