@@ -179,7 +179,7 @@ TEST(Translation_Structure_L_Infinity, OSICLP_SOLVER) {
     EXPECT_NEAR(0.0, dResidual2D, 1e-4);
   }
 
-  d2.ExportToPLY("test_After_Infinity.ply");
+  d2.ExportToPLY("test_After_Infinity_translation.ply");
 }
 
 TEST(Translation_Structure_L_Infinity, OSICLP_SOLVER_K) {
@@ -307,7 +307,7 @@ TEST(Translation_Structure_L_Infinity, OSICLP_SOLVER_K) {
     EXPECT_NEAR(0.0, dResidual2D, 1e-4 * 1000 ); // update tolerance to be in pixels
   }
 
-  d2.ExportToPLY("test_After_Infinity.ply");
+  d2.ExportToPLY("test_After_Infinity_translation_K.ply");
 }
 
 TEST(Center_Structure_L_Infinity, OSICLP_SOLVER) {
@@ -357,13 +357,13 @@ TEST(Center_Structure_L_Infinity, OSICLP_SOLVER) {
 
   //Create the mega matrix
   //Build the megaMatMatrix
-  int n_obs = rig_size * nPoses * nbPoints;
+  int n_obs = nPoses * nbPoints;
 
   Mat megaMat(5, n_obs);
   {
     size_t cpt = 0;
     for (size_t i = 0; i  < nbPoints; ++i)
-      for(size_t k = 0 ; k < rig_size; ++k )
+      for(size_t k = 0 ; k < 1; ++k )
         for(size_t j = 0; j < nPoses; ++j)
         {
           megaMat(0, cpt) = d2._x[j * rig_size + k].col(i)(0); // feature x
@@ -421,7 +421,7 @@ TEST(Center_Structure_L_Infinity, OSICLP_SOLVER) {
     Vec2 xk, xsum(0.0,0.0);
     for (size_t i = 0; i  < nbPoints; ++i)
       for(size_t j = 0; j < nPoses; ++j)
-        for(size_t k = 0 ; k < rig_size; ++k )
+        for(size_t k = 0 ; k < 1; ++k )
         {
           xk = Project(d2.P(j,k), Vec3(d2._X.col(i)));
           xsum += Vec2(( xk - d2._x[j * rig_size + k].col(i)).array().pow(2));
@@ -433,7 +433,7 @@ TEST(Center_Structure_L_Infinity, OSICLP_SOLVER) {
     EXPECT_NEAR(0.0, dResidual2D, 1e-4);
   }
 
-  d2.ExportToPLY("test_After_Infinity.ply");
+  d2.ExportToPLY("test_After_Infinity_center.ply");
 }
 
 TEST(Center_Structure_L_Infinity, OSICLP_SOLVER_K) {
@@ -483,13 +483,13 @@ TEST(Center_Structure_L_Infinity, OSICLP_SOLVER_K) {
 
   //Create the mega matrix
   //Build the megaMatMatrix
-  int n_obs = rig_size * nPoses * nbPoints;
+  int n_obs = nPoses * nbPoints;
 
   Mat megaMat(5, n_obs);
   {
     size_t cpt = 0;
     for (size_t i = 0; i  < nbPoints; ++i)
-      for(size_t k = 0 ; k < rig_size; ++k )
+      for(size_t k = 0 ; k < 1; ++k )
         for(size_t j = 0; j < nPoses; ++j)
         {
           //compute projection matrices
@@ -553,7 +553,7 @@ TEST(Center_Structure_L_Infinity, OSICLP_SOLVER_K) {
     Vec2 xk, xsum(0.0,0.0);
     for (size_t i = 0; i  < nbPoints; ++i)
       for(size_t j = 0; j < nPoses; ++j)
-        for(size_t k = 0 ; k < rig_size; ++k )
+        for(size_t k = 0 ; k < 1; ++k )
         {
           xk = Project(d2.P(j,k), Vec3(d2._X.col(i)));
           xsum += Vec2(( xk - d2._x[j * rig_size + k].col(i)).array().pow(2));
@@ -565,7 +565,7 @@ TEST(Center_Structure_L_Infinity, OSICLP_SOLVER_K) {
     EXPECT_NEAR(0.0, dResidual2D, 1e-4 * 1000 ); // update tolerance to be in pixels
   }
 
-  d2.ExportToPLY("test_After_Infinity.ply");
+  d2.ExportToPLY("test_After_Infinity_center_K.ply");
 }
 
 /* ************************************************************************* */

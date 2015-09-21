@@ -59,8 +59,8 @@ TEST(GeRelativePose, GeRelativePose_Kernel) {
   int principal_Point = 0;
 
   // initialize structure
-  const size_t nPoses = 8;
-  const size_t rig_size = 3;
+  const size_t nPoses = 3;
+  const size_t rig_size = 2;
   const size_t nViews = rig_size * nPoses;
   const size_t nbPoints = SolverType::MINIMUM_SAMPLES;
 
@@ -98,7 +98,7 @@ TEST(GeRelativePose, GeRelativePose_Kernel) {
   }
 
   // Check that triangulation point are near to the inital data
-  EXPECT_NEAR(0.0, triangulation_error, 1e-10);
+  EXPECT_NEAR(0.0, triangulation_error, 1e-8);
 
   // initialize opengv offsets and rotations
   opengv::translations_t  offsets;
@@ -110,93 +110,64 @@ TEST(GeRelativePose, GeRelativePose_Kernel) {
   }
 
   // evaluate models
-  for(int i=1; i < nPoses; ++i)
+  for(int n=0 ; n < nPoses ; ++n )
   {
-    // initialize structures used for matching between rigs
-    opengv::bearingVectors_t bearingVectorsRigOne, bearingVectorsRigTwo;
-    std::vector<int> camCorrespondencesRigOne, camCorrespondencesRigTwo;
-
-    // check that the scene is well constructed
-    triangulation_error = 0.0;
-
-    for(int j=0; j < nbPoints; ++j )
+    for(int i=n+1; i < nPoses; ++i )  // iterate on poses
     {
-      // Triangulate and return the reprojection error
-      Triangulation triangulationObj;
-      std::vector < std::pair <Mat34, Vec2> >  views;
+      // initialize structures used for matching between rigs
+      opengv::bearingVectors_t bearingVectorsRigOne, bearingVectorsRigTwo;
+      std::vector<int> camCorrespondencesRigOne, camCorrespondencesRigTwo;
 
-      for(int k=0; k < rig_size; ++k )
+      for(int j=0; j < nbPoints; ++j )  // iteration on 3D points
       {
-        //compute projection matrices
-        Vec2 pt;
-        pt << d2._x[k].col(j)(0), d2._x[k].col(j)(1);
-        views.push_back(std::make_pair ( d2.P(0,k), pt ) );
-
-        for( int l=0; l < rig_size; ++l )
+        for(int k=0; k < rig_size; ++k )  // iteration on subcamera of first rig
         {
-          //compute projection matrices
-          if( k == rig_size-1){
-          Vec2 pt2;
-          pt2 << d2._x[i * rig_size + l].col(j)(0), d2._x[i * rig_size + l].col(j)(1);
-          views.push_back(std::make_pair ( d2.P(i,l), pt2 ) );
+          for( int l=0; l < rig_size; ++l )  // iterations on subcamera of second rig
+          {
+            // update sub camera index lists
+            camCorrespondencesRigOne.push_back(k);
+            camCorrespondencesRigTwo.push_back(l);
+
+            // update bearing vectors lists
+            opengv::bearingVector_t  bearing_vector_0;
+            opengv::bearingVector_t  bearing_vector_1;
+
+            bearing_vector_0 << d2._x[n*rig_size+k].col(j)(0), d2._x[n*rig_size+k].col(j)(1), 1.0;
+            bearing_vector_1 << d2._x[i*rig_size+l].col(j)(0), d2._x[i*rig_size+l].col(j)(1), 1.0;
+
+            bearing_vector_0.normalize();
+            bearing_vector_1.normalize();
+            bearingVectorsRigOne.push_back( bearing_vector_0 );
+            bearingVectorsRigTwo.push_back( bearing_vector_1 );
           }
-
-          // update sub camera index lists
-          camCorrespondencesRigOne.push_back(k);
-          camCorrespondencesRigTwo.push_back(l);
-
-          // update bearing vectors lists
-          opengv::bearingVector_t  bearing_vector_0;
-          opengv::bearingVector_t  bearing_vector_1;
-
-          bearing_vector_0 << d2._x[k].col(j)(0), d2._x[k].col(j)(1), 1.0;
-          bearing_vector_1 << d2._x[i*rig_size+l].col(j)(0), d2._x[i*rig_size+l].col(j)(1), 1.0;
-
-          bearing_vector_0.normalize();
-          bearingVectorsRigOne.push_back( bearing_vector_0 );
-
-          bearing_vector_1.normalize();
-          bearingVectorsRigTwo.push_back( bearing_vector_1 );
         }
       }
 
-      // update triangulation object
-      for( size_t n = 0 ; n < views.size(); ++n )
-        triangulationObj.add ( views[n].first, views[n].second );
+      // Define kernel
+      typedef openMVG::robust::ACKernelAdaptorRigPose<
+           SolverType,
+           openMVG::noncentral::kernel::RigAngularError,
+           transformation_t>
+           KernelType;
 
-      const Vec3 X = triangulationObj.compute();
-      triangulation_error += (X -d._X.col(j)).norm();
+      KernelType kernel(  bearingVectorsRigOne,
+                          bearingVectorsRigTwo,
+                          camCorrespondencesRigOne,
+                          camCorrespondencesRigTwo,
+                          offsets,
+                          rotations);
 
-    }
+      std::vector<opengv::transformation_t> models;
+      vector<size_t> samples;
 
-    // Check that triangulation point are near to the inital data
-    EXPECT_NEAR(0.0, triangulation_error, 1e-10);
+      for (size_t k = 0; k < bearingVectorsRigOne.size(); ++k) {
+         samples.push_back(k);
+       }
 
-    // Define kernel
-    typedef openMVG::robust::ACKernelAdaptorRigPose<
-         SolverType,
-         openMVG::noncentral::kernel::RigAngularError,
-         transformation_t>
-         KernelType;
-
-    KernelType kernel(  bearingVectorsRigOne,
-                        bearingVectorsRigTwo,
-                        camCorrespondencesRigOne,
-                        camCorrespondencesRigTwo,
-                        offsets,
-                        rotations);
-
-    std::vector<opengv::transformation_t> models;
-    vector<size_t> samples;
-
-    for (size_t k = 0; k < bearingVectorsRigOne.size() ; ++k) {
-       samples.push_back(k);
+       kernel.Fit(samples, &models);
+       d2._R[i] = models[0].block<3,3>(0,0).transpose() * d._R[n] ;
+       d2._C[i] = d._R[n].transpose() * models[0].col(3) + d._C[n];
      }
-
-     kernel.Fit(samples, &models);
-     d2._R[i] = models[0].block<3,3>(0,0).transpose();
-     std::cout << d2._R[i] << std::endl << d._R[i] << std::endl << std::endl;
-     d2._C[i] = d2._R[0].transpose() * models[0].col(3) + d2._C[0];
   }
   d2.ExportToPLY("test_After_Pose_Estimation.ply");
 

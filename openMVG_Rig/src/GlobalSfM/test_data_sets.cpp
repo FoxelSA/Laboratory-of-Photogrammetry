@@ -89,11 +89,19 @@ NPoseDataSet NRealisticPosesRing(  size_t nposes, size_t nviews,
                         0,           0,          1;
 
       // intialize offset and rotations
-      lookdir << 0.0, 0.0, 1.0; // Y axis UP
-      center  << (j - floor(0.5 * rig_size) ) / (double) rig_size, 0.0, 0.0;
-      d._offsets[j] = center ;
+      double theta = j * 2 * M_PI / rig_size / nposes ;
+      center  << -sin(theta), 0.0, -cos(theta);
+      center *= config._dist;
+      if( j < 1)
+        d._offsets[j] = center ;
+      else
+        d._offsets[j] = center - d._offsets[0];
+
+      if( j == rig_size - 1 )
+        d._offsets[0] *= 0.01;
 
       // initialize sub camera rotation
+      lookdir = -center;
       d._rotations[j] = LookAt(lookdir);
   }
 
