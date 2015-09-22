@@ -69,7 +69,7 @@ TEST(Translation_Structure_L_Infinity, OSICLP_SOLVER) {
   const NPoseDataSet d = NRealisticPosesRing(nPoses, nViews, rig_size, nbPoints,
     nPoseDatasetConfigurator(1,1,0,0,5,0)); // Suppose a camera with Unit matrix as K
 
-  d.ExportToPLY("test_Before_Infinity.ply");
+  d.ExportToPLY("test_Before_Infinity_translation.ply");
   //-- Test triangulation of all the point
   NPoseDataSet d2 = d;
 
@@ -153,7 +153,7 @@ TEST(Translation_Structure_L_Infinity, OSICLP_SOLVER) {
         size_t index = i*3;
         d2._t[i] = Vec3(vec_solution[index], vec_solution[index+1], vec_solution[index+2]);
         // Change Ci to -Ri*Ci
-        d2._C[i] = -d2._R[i] * d2._t[i];
+        d2._C[i] = -d2._R[i].transpose() * d2._t[i];
       }
 
       //-- Now the Xi :
@@ -191,7 +191,7 @@ TEST(Translation_Structure_L_Infinity, OSICLP_SOLVER_K) {
   const NPoseDataSet d = NRealisticPosesRing(nPoses, nViews, rig_size, nbPoints,
     nPoseDatasetConfigurator(1000,1000,500,500,5,0)); // Suppose a camera with Unit matrix as K
 
-  d.ExportToPLY("test_Before_Infinity.ply");
+  d.ExportToPLY("test_Before_Infinity_translation_K.ply");
   //-- Test triangulation of all the point
   NPoseDataSet d2 = d;
 
@@ -281,7 +281,7 @@ TEST(Translation_Structure_L_Infinity, OSICLP_SOLVER_K) {
         size_t index = i*3;
         d2._t[i] = Vec3(vec_solution[index], vec_solution[index+1], vec_solution[index+2]);
         // Change Ci to -Ri*Ci
-        d2._C[i] = -d2._R[i] * d2._t[i];
+        d2._C[i] = -d2._R[i].transpose() * d2._t[i];
       }
 
       //-- Now the Xi :
@@ -319,7 +319,7 @@ TEST(Center_Structure_L_Infinity, OSICLP_SOLVER) {
   const NPoseDataSet d = NRealisticPosesRing(nPoses, nViews, rig_size, nbPoints,
     nPoseDatasetConfigurator(1,1,0,0,5,0)); // Suppose a camera with Unit matrix as K
 
-  d.ExportToPLY("test_Before_Infinity.ply");
+  d.ExportToPLY("test_Before_Infinity_center.ply");
   //-- Test triangulation of all the point
   NPoseDataSet d2 = d;
 
@@ -357,13 +357,13 @@ TEST(Center_Structure_L_Infinity, OSICLP_SOLVER) {
 
   //Create the mega matrix
   //Build the megaMatMatrix
-  int n_obs = nPoses * nbPoints;
+  int n_obs = rig_size * nPoses * nbPoints;
 
   Mat megaMat(5, n_obs);
   {
     size_t cpt = 0;
     for (size_t i = 0; i  < nbPoints; ++i)
-      for(size_t k = 0 ; k < 1; ++k )
+      for(size_t k = 0 ; k < rig_size; ++k )
         for(size_t j = 0; j < nPoses; ++j)
         {
           megaMat(0, cpt) = d2._x[j * rig_size + k].col(i)(0); // feature x
@@ -377,7 +377,7 @@ TEST(Center_Structure_L_Infinity, OSICLP_SOLVER) {
 
   // Solve the problem and check that fitted value are good enough
   {
-    std::vector<double> vec_solution((nPoses + nbPoints)*3);
+    std::vector<double> vec_solution( (nPoses*3 + n_obs) );
     using namespace openMVG::lInfinityCV;
 
 #ifdef OPENMVG_HAVE_MOSEK
@@ -403,7 +403,7 @@ TEST(Center_Structure_L_Infinity, OSICLP_SOLVER) {
         size_t index = i*3;
         d2._t[i] = Vec3(vec_solution[index], vec_solution[index+1], vec_solution[index+2]);
         // Change Ci to -Ri*Ci
-        d2._C[i] = -d2._R[i] * d2._t[i];
+        d2._C[i] = -d2._R[i].transpose() * d2._t[i];
       }
 
       //-- Now the Xi :
@@ -411,7 +411,8 @@ TEST(Center_Structure_L_Infinity, OSICLP_SOLVER) {
         size_t index = 3*nPoses;
         Vec3  bearing_vector ;
         bearing_vector << d2._x[0].col(i)(0), d2._x[0].col(i)(1), 1.0;
-        const Vec3  X_from_depth = vec_solution[index + i*3] * d2._R[0].transpose() * d2._rotations[0].transpose() * bearing_vector
+        const Vec3  X_from_depth = ( vec_solution[index + i*nPoses*rig_size]
+                                     * d2._R[0].transpose() * d2._rotations[0].transpose() * bearing_vector )
                                    + d2._R[0].transpose() * d2._offsets[0] + d2._C[0];
         d2._X.col(i) = X_from_depth;
       }
@@ -421,7 +422,7 @@ TEST(Center_Structure_L_Infinity, OSICLP_SOLVER) {
     Vec2 xk, xsum(0.0,0.0);
     for (size_t i = 0; i  < nbPoints; ++i)
       for(size_t j = 0; j < nPoses; ++j)
-        for(size_t k = 0 ; k < 1; ++k )
+        for(size_t k = 0 ; k < rig_size; ++k )
         {
           xk = Project(d2.P(j,k), Vec3(d2._X.col(i)));
           xsum += Vec2(( xk - d2._x[j * rig_size + k].col(i)).array().pow(2));
@@ -445,7 +446,7 @@ TEST(Center_Structure_L_Infinity, OSICLP_SOLVER_K) {
   const NPoseDataSet d = NRealisticPosesRing(nPoses, nViews, rig_size, nbPoints,
     nPoseDatasetConfigurator(1000,1000,500,500,5,0)); // Suppose a camera with Unit matrix as K
 
-  d.ExportToPLY("test_Before_Infinity.ply");
+  d.ExportToPLY("test_Before_Infinity_center_K.ply");
   //-- Test triangulation of all the point
   NPoseDataSet d2 = d;
 
@@ -483,13 +484,13 @@ TEST(Center_Structure_L_Infinity, OSICLP_SOLVER_K) {
 
   //Create the mega matrix
   //Build the megaMatMatrix
-  int n_obs = nPoses * nbPoints;
+  int n_obs = rig_size * nPoses * nbPoints;
 
   Mat megaMat(5, n_obs);
   {
     size_t cpt = 0;
     for (size_t i = 0; i  < nbPoints; ++i)
-      for(size_t k = 0 ; k < 1; ++k )
+      for(size_t k = 0 ; k < rig_size; ++k )
         for(size_t j = 0; j < nPoses; ++j)
         {
           //compute projection matrices
@@ -509,7 +510,7 @@ TEST(Center_Structure_L_Infinity, OSICLP_SOLVER_K) {
 
   // Solve the problem and check that fitted value are good enough
   {
-    std::vector<double> vec_solution((nPoses + nbPoints)*3);
+    std::vector<double> vec_solution( (nPoses*3 + n_obs) );
     using namespace openMVG::lInfinityCV;
 
 #ifdef OPENMVG_HAVE_MOSEK
@@ -535,7 +536,7 @@ TEST(Center_Structure_L_Infinity, OSICLP_SOLVER_K) {
         size_t index = i*3;
         d2._t[i] = Vec3(vec_solution[index], vec_solution[index+1], vec_solution[index+2]);
         // Change Ci to -Ri*Ci
-        d2._C[i] = -d2._R[i] * d2._t[i];
+        d2._C[i] = -d2._R[i].transpose() * d2._t[i];
       }
 
       //-- Now the Xi :
@@ -543,8 +544,10 @@ TEST(Center_Structure_L_Infinity, OSICLP_SOLVER_K) {
         size_t index = 3*nPoses;
         Vec3  bearing_vector ;
         bearing_vector << d2._x[0].col(i)(0), d2._x[0].col(i)(1), 1.0;
-        const Vec3  X_from_depth = vec_solution[index + i*3] * d2._R[0].transpose() * d2._rotations[0].transpose() * d2._K[0].inverse() * bearing_vector
-                                   + d2._R[0].transpose() * d2._offsets[0] + d2._C[0];
+        const Vec3  X_from_depth = ( vec_solution[index + i*nPoses*rig_size]
+                                    * d2._R[0].transpose() * d2._rotations[0].transpose()
+                                    * d2._K[0].inverse() * bearing_vector )
+                                    + d2._R[0].transpose() * d2._offsets[0] + d2._C[0];
         d2._X.col(i) = X_from_depth;
       }
     }

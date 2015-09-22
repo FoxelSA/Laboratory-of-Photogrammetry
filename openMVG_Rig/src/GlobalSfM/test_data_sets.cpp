@@ -98,7 +98,7 @@ NPoseDataSet NRealisticPosesRing(  size_t nposes, size_t nviews,
         d._offsets[j] = center - d._offsets[0];
 
       if( j == rig_size - 1 )
-        d._offsets[0] *= 0.01;
+        d._offsets[0] *= 0.0;
 
       // initialize sub camera rotation
       lookdir = -center;

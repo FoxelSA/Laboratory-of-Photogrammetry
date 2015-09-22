@@ -37,7 +37,7 @@
  */
 
 #pragma once
-// #define USE_L_INFINITY_TRANSLATION 1
+#define USE_L_INFINITY_TRANSLATION 0
 
 #include "./triplet_t_solver_rig.hpp"
 #include "openMVG/numeric/numeric.h"
@@ -144,16 +144,20 @@ namespace openMVG{
     for(int i=0; i < pt.size() ; ++i )
       n_obs += pt[i].size();
 
-      Mat megaMat(5, n_obs);
+    Mat megaMat(5, n_obs);
     {
       size_t cpt = 0;
       for (size_t i = 0; i  < pt.size(); ++i)
+      {
         for(size_t j = 0; j < pt[i].size(); ++j)
         {
           megaMat.col(cpt) << pt[i][j][0], pt[i][j][1], i, pt[i][j][2], pt[i][j][3]; // feature x and y, 3d point index, rig subcam index and rig index
           ++cpt;
         }
       }
+    }
+
+#if USE_L_INFINITY_TRANSLATION
       //-- Solve the LInfinity translation and structure from Rotation and points data.
       std::vector<double> vec_solution((3 + MINIMUM_SAMPLES)*3);
 
@@ -165,7 +169,6 @@ namespace openMVG{
       OSI_CLP_SolverWrapper LPsolver(static_cast<int>(vec_solution.size()));
       #endif
 
-#ifdef USE_L_INFINITY_TRANSLATION
       Rig_Translation_Structure_L1_ConstraintBuilder cstBuilder(vec_KR, megaMat, rigRotation, rigOffsets);
       double gamma;
       if (BisectionLP<Rig_Translation_Structure_L1_ConstraintBuilder, LP_Constraints_Sparse>(
@@ -188,6 +191,17 @@ namespace openMVG{
         P->push_back(PTemp);
       }
 #else
+      //-- Solve the LInfinity translation and structure from Rotation and points data.
+      std::vector<double> vec_solution((9 + n_obs));
+
+      using namespace openMVG::lInfinityCV;
+
+      #ifdef OPENMVG_HAVE_MOSEK
+      MOSEK_SolveWrapper LPsolver(static_cast<int>(vec_solution.size()));
+      #else
+      OSI_CLP_SolverWrapper LPsolver(static_cast<int>(vec_solution.size()));
+      #endif
+
       Rig_Center_Structure_L1_ConstraintBuilder cstBuilder(vec_KR, megaMat, rigRotation, rigOffsets);
       double gamma;
       if (BisectionLP<Rig_Center_Structure_L1_ConstraintBuilder, LP_Constraints_Sparse>(

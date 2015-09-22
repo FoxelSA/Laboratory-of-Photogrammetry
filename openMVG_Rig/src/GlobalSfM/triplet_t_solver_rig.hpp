@@ -200,7 +200,7 @@ void EncodeRigCiXi
 
   assert(Nrig == Ri.size());
 
-  A.resize( 6 * Nobs, 3 * (N3D + Nrig) );
+  A.resize( 6 * Nobs, Nobs + 3*Nrig );
 
   C.resize( 6 * Nobs, 1);
   C.fill(0.0);
@@ -210,221 +210,113 @@ void EncodeRigCiXi
   const size_t pointStart = transStart + 3*Nrig;
 
 # define TVAR(i, el) (0 + 3*(i) + (el))           // translation between rigs
-# define XVAR(j, el) (pointStart + 3*(j) + (el))
+# define XVAR(j) (pointStart + (j))
 
   // By default set free variable:
-  vec_bounds = std::vector< std::pair<double,double> >(3 * (N3D + Nrig),
+  vec_bounds = std::vector< std::pair<double,double> >(Nobs + 3*Nrig,
     std::make_pair((double)-1e+30, (double)1e+30));
   // Fix the translation ambiguity. (set first cam at (0,0,0))
   vec_bounds[0] = vec_bounds[1] = vec_bounds[2] = std::make_pair(0,0);
 
-  // compute minimal angle between bearing vectors
-  double minAngle = 1.0e10;
-  double maxAngle = 0.0;
-
-  Vec3 b0, b1, b2;
-  for (size_t k = 0; k < Nobs/3 ; ++k)
+  Vec3 b0, b1;
+  // Add the cheirality conditions (R_c*R_i*X_j + R_c*T_i + t_c)_3 + Z_ij >= 1
+  for (size_t k = 0; k < Nobs ; ++k)
   {
-    // define pose index
-    const size_t  pose_I = 3*k;
-    const size_t  pose_J = 3*k + 1;
-    const size_t  pose_K = 3*k + 2;
-
-    // we assume here that each track contains 3 bearing vectors
-    b0 << M(0, pose_I), M(1, pose_I), 1.0;
-    b1 << M(0, pose_J), M(1, pose_J), 1.0;
-    b2 << M(0, pose_K), M(1, pose_K), 1.0;
-
-    // extract sub poses rotations (rotation sensor to pose referential )
-    const Mat3 Rc0 = rigRotation[M(3, pose_I)].transpose();
-    const Mat3 Rc1 = rigRotation[M(3, pose_J)].transpose();
-    const Mat3 Rc2 = rigRotation[M(3, pose_K)].transpose();
-
-    // extract rotations of poses (rotation poses referential to world referential )
-    const Mat3 R0  = Ri[M(4, pose_I)].transpose();
-    const Mat3 R1  = Ri[M(4, pose_J)].transpose();
-    const Mat3 R2  = Ri[M(4, pose_K)].transpose();
-
-    // compute bearing vector in world referential frame
-    // just apply rotation of subpose-> pose and pose -> world
-    const Vec3 Rb0 = (R0 * Rc0 * b0).normalized();
-    const Vec3 Rb1 = (R1 * Rc1 * b1).normalized();
-    const Vec3 Rb2 = (R2 * Rc2 * b2).normalized();
-
-    // compute angles between bearing vectors in world referential frame
-    const double alpha_0 = acos(Rb0.transpose() * Rb1);  // angle between bearing vector of pose 0 and 1
-    const double alpha_1 = acos(Rb0.transpose() * Rb2);  // angle between bearing vector of pose 0 and 2
-    const double alpha_2 = acos(Rb1.transpose() * Rb2);  // angle between bearing vector of pose 1 and 2
-
-    // update minimal and maximal angle
-    minAngle = std::min( minAngle, std::min(alpha_0, std::min(alpha_1, alpha_2) ) );
-    maxAngle = std::max( maxAngle, std::max(alpha_0, std::max(alpha_1, alpha_2) ) );
-  }
-
-  // update lower bound of depth
-  for ( size_t l = 0 ; l < N3D; ++l )
-  {
-    vec_bounds[XVAR(l,0)] = std::make_pair(1.0 / maxAngle, (double)1e+30);
-    vec_bounds[XVAR(l,1)] = std::make_pair(1.0 / maxAngle, (double)1e+30);
-    vec_bounds[XVAR(l,2)] = std::make_pair(1.0 / maxAngle, (double)1e+30);
+    vec_bounds[XVAR(k)] = std::make_pair( 0.0 , (double)1e+30 );
   }
 
   size_t rowpos = 0;
   // Add the cheirality conditions (R_c*R_i*X_j + R_c*T_i + t_c)_3 + Z_ij >= 1
-  for (size_t k = 0; k < Nobs/3 ; ++k)
+  for (size_t k = 0; k < Nobs-1 ; ++k)
   {
-    // define pose index
-    const size_t  pose_I = 3*k;
-    const size_t  pose_J = 3*k + 1;
-    const size_t  pose_K = 3*k + 2;
+      // define pose index
+      const size_t  pose_I = k;
+      const size_t  pose_J = k+1;
 
-    // we assume here that each track is of length 3
-    // extract bearing vectors
-    b0 << M(0, pose_I), M(1, pose_I), 1.0;
-    b1 << M(0, pose_J), M(1, pose_J), 1.0;
-    b2 << M(0, pose_K), M(1, pose_K), 1.0;
+      // we assume here that each track is of length 3
+      // extract bearing vectors
+      b0 << M(0, pose_I), M(1, pose_I), 1.0;
+      b1 << M(0, pose_J), M(1, pose_J), 1.0;
 
-    // extract sub poses rotations (rotation sensor to pose referential )
-    const Mat3  Rc0  = rigRotation[M(3, pose_I)].transpose();
-    const Mat3  Rc1  = rigRotation[M(3, pose_J)].transpose();
-    const Mat3  Rc2  = rigRotation[M(3, pose_K)].transpose();
+      // extract sub poses rotations (rotation sensor to pose referential )
+      const Mat3  Rc0  = rigRotation[M(3, pose_I)].transpose();
+      const Mat3  Rc1  = rigRotation[M(3, pose_J)].transpose();
 
-    // extract rotations of poses (rotation poses referential to world referential )
-    const Mat3  R0  = Ri[M(4, pose_I)].transpose();
-    const Mat3  R1  = Ri[M(4, pose_J)].transpose();
-    const Mat3  R2  = Ri[M(4, pose_K)].transpose();
+      // extract rotations of poses (rotation poses referential to world referential )
+      const Mat3  R0  = Ri[M(4, pose_I)].transpose();
+      const Mat3  R1  = Ri[M(4, pose_J)].transpose();
 
-    // compute bearing vector in world referential frame
-    // just apply rotation of subpose-> pose and pose -> world
-    const Vec3  Rb0 = R0 * Rc0 * b0;
-    const Vec3  Rb1 = R1 * Rc1 * b1;
-    const Vec3  Rb2 = R2 * Rc2 * b2;
+      // compute bearing vector in world referential frame
+      // just apply rotation of subpose-> pose and pose -> world
+      const Vec3  Rb0 = R0 * Rc0 * b0;
+      const Vec3  Rb1 = R1 * Rc1 * b1;
 
-    // compute center of camera in world referential frame
-    // apply rotation pose -> world at each offset
-    const Vec3  R_c0 = R0 * rigOffsets[M(3, pose_I)];
-    const Vec3  R_c1 = R1 * rigOffsets[M(3, pose_J)];
-    const Vec3  R_c2 = R2 * rigOffsets[M(3, pose_K)];
+      // compute center of camera in world referential frame
+      // apply rotation pose -> world at each offset
+      const Vec3  R_c0 = R0 * rigOffsets[M(3, pose_I)];
+      const Vec3  R_c1 = R1 * rigOffsets[M(3, pose_J)];
 
-    // 3D point index
-    const size_t  pointIndex = M(2, pose_I);
+      // 3D point index
+      const size_t  pointIndex_I = M(2, pose_I);
+      const size_t  pointIndex_J = M(2, pose_J);
 
-    /**************************************************************
-    * a 3d point originated from a bearing vector \b
-    * of a subcamera with pose (R_c, C_c) in a rig with pose (R_r, C_r)
-    *  is given by the following equation
-    *
-    *    X = \alpha R_r^T  R_c^T \b - R_r^T t_r + R_r^T C_c
-    *
-    * where \alpha is the depth of point X related to subcamera and
-    * \t_r is the translation of the rig. In this scheme we compute
-    * three 3D points X_0, X_1 and X_2 originated from poses 0, 1, 2
-    * and translation \t_0, \t_1 and \t_2 such that
-    *
-    *   \| X_0 - X_1 \|_{\infty}  \leq \sigma
-    *   \| X_0 - X_2 \|_{\infty}  \leq \sigma
-    *   \| X_1 - X_2 \|_{\infty}  \leq \sigma
-    *
-    ****************************************************************
-    */
-    // encode matrix
-    for( int i=0 ; i < 3 ; ++i )  // loop on componant of translation
-    {
-      // ||X_0 -X_1 || \leq \sigma is equivalent to
-      //  \alpha_0 (R_r0 ^T R_c0^T \b0)_i -  \alpha_1 (R_r1 ^T R_c1^T \b1)_i
-      //       -(R_r0^T \t_0)_i + (R_r1^T \t_1)_i
-      //        \leq \sigma - R_r0^T C_c0 + R_r1^T C_c1
-      A.coeffRef(rowpos, TVAR(0, 0)) = -R0(i,0);
-      A.coeffRef(rowpos, TVAR(0, 1)) = -R0(i,1);
-      A.coeffRef(rowpos, TVAR(0, 2)) = -R0(i,2);
-      A.coeffRef(rowpos, TVAR(1, 0)) =  R1(i,0);
-      A.coeffRef(rowpos, TVAR(1, 1)) =  R1(i,1);
-      A.coeffRef(rowpos, TVAR(1, 2)) =  R1(i,2);
-      A.coeffRef(rowpos, XVAR(pointIndex, 0)) =  Rb0(i);
-      A.coeffRef(rowpos, XVAR(pointIndex, 1)) = -Rb1(i);
-      C(rowpos) = sigma - R_c0(i) + R_c1(i);
-      vec_sign[rowpos] = openMVG::linearProgramming::LP_Constraints::LP_LESS_OR_EQUAL;
-      ++rowpos;
+      // pose index
+      const size_t  pose_index_I = M(4, pose_I);
+      const size_t  pose_index_J = M(4, pose_J);
 
-      // ||X_0 -X_1 || \leq \sigma is equivalent to
-      //  \alpha_0 (R_r0 ^T R_c0^T \b0)_i -  \alpha_1 (R_r1 ^T R_c1^T \b1)_i
-      //       -(R_r0^T \t_0)_i + (R_r1^T \t_1)_i
-      //        \geq - \sigma - R_r0^T C_c0 + R_r1^T C_c1
-      A.coeffRef(rowpos, TVAR(0, 0)) = -R0(i,0);
-      A.coeffRef(rowpos, TVAR(0, 1)) = -R0(i,1);
-      A.coeffRef(rowpos, TVAR(0, 2)) = -R0(i,2);
-      A.coeffRef(rowpos, TVAR(1, 0)) =  R1(i,0);
-      A.coeffRef(rowpos, TVAR(1, 1)) =  R1(i,1);
-      A.coeffRef(rowpos, TVAR(1, 2)) =  R1(i,2);
-      A.coeffRef(rowpos, XVAR(pointIndex, 0)) =  Rb0(i);
-      A.coeffRef(rowpos, XVAR(pointIndex, 1)) = -Rb1(i);
-      C(rowpos) = -sigma - R_c0(i) + R_c1(i);
-      vec_sign[rowpos] = openMVG::linearProgramming::LP_Constraints::LP_GREATER_OR_EQUAL;
-      ++rowpos;
+      /**************************************************************
+      * a 3d point originated from a bearing vector \b
+      * of a subcamera with pose (R_c, C_c) in a rig with pose (R_r, C_r)
+      *  is given by the following equation
+      *
+      *    X = \alpha R_r^T  R_c^T \b - R_r^T t_r + R_r^T C_c
+      *
+      * where \alpha is the depth of point X related to subcamera and
+      * \t_r is the translation of the rig. In this scheme we compute
+      * three 3D points X_0, X_1 and X_2 originated from poses 0, 1, 2
+      * and translation \t_0, \t_1 and \t_2 such that
+      *
+      *   \| X_0 - X_1 \|_{\infty}  \leq \sigma
+      *
+      ****************************************************************
+      */
+      if( pointIndex_J == pointIndex_I )
+      {
+        // encode matrix
+        for( int i=0 ; i < 3 ; ++i )  // loop on componant of translation
+        {
+          // ||X_0 -X_1 || \leq \sigma is equivalent to
+          //  \alpha_0 (R_r0 ^T R_c0^T \b0)_i -  \alpha_1 (R_r1 ^T R_c1^T \b1)_i
+          //       -(R_r0^T \t_0)_i + (R_r1^T \t_1)_i
+          //        \leq \sigma - R_r0^T C_c0 + R_r1^T C_c1
+          A.coeffRef(rowpos, TVAR(pose_index_I, 0)) = -R0(i,0);
+          A.coeffRef(rowpos, TVAR(pose_index_I, 1)) = -R0(i,1);
+          A.coeffRef(rowpos, TVAR(pose_index_I, 2)) = -R0(i,2);
+          A.coeffRef(rowpos, TVAR(pose_index_J, 0)) =  R1(i,0);
+          A.coeffRef(rowpos, TVAR(pose_index_J, 1)) =  R1(i,1);
+          A.coeffRef(rowpos, TVAR(pose_index_J, 2)) =  R1(i,2);
+          A.coeffRef(rowpos, XVAR(pose_I)) =  Rb0(i);
+          A.coeffRef(rowpos, XVAR(pose_J)) = -Rb1(i);
+          C(rowpos) = sigma - R_c0(i) + R_c1(i);
+          vec_sign[rowpos] = openMVG::linearProgramming::LP_Constraints::LP_LESS_OR_EQUAL;
+          ++rowpos;
 
-      // ||X_0 -X_2 || \leq \sigma is equivalent to
-      //  \alpha_0 (R_r0 ^T R_c0^T \b0)_i -  \alpha_2 (R_r2 ^T R_c2^T \b2)_i
-      //       -(R_r0^T \t_0)_i + (R_r2^T \t_2)_i
-      //        \leq \sigma - R_r0^T C_c0 + R_r2^T C_c2
-      A.coeffRef(rowpos, TVAR(0, 0)) = -R0(i,0);
-      A.coeffRef(rowpos, TVAR(0, 1)) = -R0(i,1);
-      A.coeffRef(rowpos, TVAR(0, 2)) = -R0(i,2);
-      A.coeffRef(rowpos, TVAR(2, 0)) =  R2(i,0);
-      A.coeffRef(rowpos, TVAR(2, 1)) =  R2(i,1);
-      A.coeffRef(rowpos, TVAR(2, 2)) =  R2(i,2);
-      A.coeffRef(rowpos, XVAR(pointIndex, 0)) =  Rb0(i);
-      A.coeffRef(rowpos, XVAR(pointIndex, 2)) = -Rb2(i);
-      C(rowpos) = sigma - R_c0(i) + R_c2(i);
-      vec_sign[rowpos] = openMVG::linearProgramming::LP_Constraints::LP_LESS_OR_EQUAL;
-      ++rowpos;
-
-      // ||X_0 -X_2 || \leq \sigma is equivalent to
-      //  \alpha_0 (R_r0 ^T R_c0^T \b0)_i -  \alpha_2 (R_r2 ^T R_c2^T \b2)_i
-      //       -(R_r0^T \t_0)_i + (R_r2^T \t_2)_i
-      //        \geq - \sigma - R_r0^T C_c0 + R_r2^T C_c2
-      A.coeffRef(rowpos, TVAR(0, 0)) = -R0(i,0);
-      A.coeffRef(rowpos, TVAR(0, 1)) = -R0(i,1);
-      A.coeffRef(rowpos, TVAR(0, 2)) = -R0(i,2);
-      A.coeffRef(rowpos, TVAR(2, 0)) =  R2(i,0);
-      A.coeffRef(rowpos, TVAR(2, 1)) =  R2(i,1);
-      A.coeffRef(rowpos, TVAR(2, 2)) =  R2(i,2);
-      A.coeffRef(rowpos, XVAR(pointIndex, 0)) =  Rb0(i);
-      A.coeffRef(rowpos, XVAR(pointIndex, 2)) = -Rb2(i);
-      C(rowpos) = -sigma - R_c0(i) + R_c2(i);
-      vec_sign[rowpos] = openMVG::linearProgramming::LP_Constraints::LP_GREATER_OR_EQUAL;
-      ++rowpos;
-
-      // ||X_1 -X_2 || \leq \sigma is equivalent to
-      //  \alpha_1 (R_r1 ^T R_c1^T \b1)_i -  \alpha_2 (R_r2 ^T R_c2^T \b2)_i
-      //       -(R_r1^T \t_1)_i + (R_r2^T \t_2)_i
-      //        \leq \sigma - R_r1^T C_c1 + R_r2^T C_c2
-      A.coeffRef(rowpos, TVAR(1, 0)) = -R1(i,0);
-      A.coeffRef(rowpos, TVAR(1, 1)) = -R1(i,1);
-      A.coeffRef(rowpos, TVAR(1, 2)) = -R1(i,2);
-      A.coeffRef(rowpos, TVAR(2, 0)) =  R2(i,0);
-      A.coeffRef(rowpos, TVAR(2, 1)) =  R2(i,1);
-      A.coeffRef(rowpos, TVAR(2, 2)) =  R2(i,2);
-      A.coeffRef(rowpos, XVAR(pointIndex, 1)) =  Rb1(i);
-      A.coeffRef(rowpos, XVAR(pointIndex, 2)) = -Rb2(i);
-      C(rowpos) = sigma - R_c1(i) + R_c2(i);
-      vec_sign[rowpos] = openMVG::linearProgramming::LP_Constraints::LP_LESS_OR_EQUAL;
-      ++rowpos;
-
-      // ||X_1 -X_2 || \leq \sigma is equivalent to
-      //  \alpha_1 (R_r1 ^T R_c1^T \b1)_i -  \alpha_2 (R_r2 ^T R_c2^T \b2)_i
-      //       -(R_r1^T \t_1)_i + (R_r2^T \t_2)_i
-      //        \geq -\sigma - R_r1^T C_c1 + R_r2^T C_c2
-      A.coeffRef(rowpos, TVAR(1, 0)) = -R1(i,0);
-      A.coeffRef(rowpos, TVAR(1, 1)) = -R1(i,1);
-      A.coeffRef(rowpos, TVAR(1, 2)) = -R1(i,2);
-      A.coeffRef(rowpos, TVAR(2, 0)) =  R2(i,0);
-      A.coeffRef(rowpos, TVAR(2, 1)) =  R2(i,1);
-      A.coeffRef(rowpos, TVAR(2, 2)) =  R2(i,2);
-      A.coeffRef(rowpos, XVAR(pointIndex, 1)) =  Rb1(i);
-      A.coeffRef(rowpos, XVAR(pointIndex, 2)) = -Rb2(i);
-      C(rowpos) = -sigma - R_c1(i) + R_c2(i);
-      vec_sign[rowpos] = openMVG::linearProgramming::LP_Constraints::LP_GREATER_OR_EQUAL;
-      ++rowpos;
+          // ||X_0 -X_1 || \leq \sigma is equivalent to
+          //  \alpha_0 (R_r0 ^T R_c0^T \b0)_i -  \alpha_1 (R_r1 ^T R_c1^T \b1)_i
+          //       -(R_r0^T \t_0)_i + (R_r1^T \t_1)_i
+          //        \geq - \sigma - R_r0^T C_c0 + R_r1^T C_c1
+          A.coeffRef(rowpos, TVAR(pose_index_I, 0)) = -R0(i,0);
+          A.coeffRef(rowpos, TVAR(pose_index_I, 1)) = -R0(i,1);
+          A.coeffRef(rowpos, TVAR(pose_index_I, 2)) = -R0(i,2);
+          A.coeffRef(rowpos, TVAR(pose_index_J, 0)) =  R1(i,0);
+          A.coeffRef(rowpos, TVAR(pose_index_J, 1)) =  R1(i,1);
+          A.coeffRef(rowpos, TVAR(pose_index_J, 2)) =  R1(i,2);
+          A.coeffRef(rowpos, XVAR(pose_I)) =  Rb0(i);
+          A.coeffRef(rowpos, XVAR(pose_J)) = -Rb1(i);
+          C(rowpos) = -sigma - R_c0(i) + R_c1(i);
+          vec_sign[rowpos] = openMVG::linearProgramming::LP_Constraints::LP_GREATER_OR_EQUAL;
+          ++rowpos;
+      }
     }
   }
 # undef TVAR
@@ -526,9 +418,10 @@ struct Rig_Center_Structure_L1_ConstraintBuilder
     //-- Setup additional information about the Linear Program constraint
     // We look for nb translations and nb 3D points.
     const size_t N3D  = (size_t) _M.row(2).maxCoeff() + 1;
+    const size_t Nobs = (size_t) _M.cols();
     const size_t Nrig = (size_t) _M.row(4).maxCoeff() + 1;
 
-    constraint._nbParams = (Nrig + N3D) * 3;
+    constraint._nbParams = Nobs + Nrig* 3;
 
     return true;
   }

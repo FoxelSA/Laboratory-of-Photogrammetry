@@ -511,11 +511,11 @@ void GlobalSfMRig_Translation_AveragingSolver::ComputePutativeTranslation_EdgesC
         // Try to estimate this triplet.
         //--
         // update precision to have good value for normalized coordinates
-        double dPrecision = 4.0; // upper bound of the pixel residual
-#ifdef USE_L_INFINITY_TRANSLATION
+        double dPrecision = 8.0; // upper bound of the pixel residual
+#if USE_L_INFINITY_TRANSLATION
         const double ThresholdUpperBound = 1.5;     // maximal reprojection error in pixels
 #else
-        const double ThresholdUpperBound = 1.0e-2;  // maximal distance between 3D points in meters
+        const double ThresholdUpperBound = 5.0e-2;  // maximal distance between 3D points in meters
 #endif
         std::vector<Vec3> vec_tis(3);
         std::vector<size_t> vec_inliers;
@@ -794,8 +794,10 @@ bool GlobalSfMRig_Translation_AveragingSolver::Estimate_T_triplet(
     iterTracks != rig_tracks.end(); ++iterTracks)
   {
     const submapTrack & track = iterTracks->second;
+    std::vector<std::vector< double > > tmp(track.size());
+    size_t track_cpt = 0;
     for (submapTrack::const_iterator iterTrack_I = track.begin();
-      iterTrack_I != track.end(); ++iterTrack_I)
+      iterTrack_I != track.end(); ++iterTrack_I, ++track_cpt)
     {
       const size_t idx_view_I   = iterTrack_I->first;
       const size_t feat_I       = iterTrack_I->second;
@@ -810,58 +812,20 @@ bool GlobalSfMRig_Translation_AveragingSolver::Estimate_T_triplet(
           image_size.second = view_I->ui_height;
       }
 
-      submapTrack::const_iterator iterTrack_J = iterTrack_I;
-      std::advance(iterTrack_J, 1);
+      Vec3 bearing_I;
+      bearing_I << normalized_features_provider->feats_per_view.at(idx_view_I).at(feat_I).coords().cast<double>();
 
-      for (; iterTrack_J != track.end(); ++iterTrack_J)
-      {
-        const size_t idx_view_J   = iterTrack_J->first;
-        const size_t feat_J       = iterTrack_J->second;
-        const View * view_J       = sfm_data.views.at(idx_view_J).get();
-        const IndexT pose_index_J = view_J->id_pose;
-        if (pose_index_I == pose_index_J)
-          continue;
+      // initialize intrinsic group of cameras I and J
+      const IndexT intrinsic_index_I = intrinsic_id_remapping.at(view_I->id_intrinsic);
 
-        submapTrack::const_iterator iterTrack_K = iterTrack_J;
-        std::advance(iterTrack_K, 1);
+      // initialize relative translation data container
+      const std::vector<double> feat_cam_I = { bearing_I[0], bearing_I[1], intrinsic_index_I, map_poseId_to_contiguous.at(pose_index_I) };
 
-        for (; iterTrack_K != track.end(); ++iterTrack_K)
-        {
-          const size_t idx_view_K   = iterTrack_K->first;
-          const size_t feat_K       = iterTrack_K->second;
-          const View * view_K       = sfm_data.views.at(idx_view_K).get();
-          const IndexT pose_index_K = view_K->id_pose;
-
-          // if the images are in 3 different poses
-          if (pose_index_I != pose_index_J && pose_index_J != pose_index_K && pose_index_I != pose_index_K)
-          {
-            // extract normalized keypoints coordinates
-            Vec2 bearing_I, bearing_J, bearing_K;
-            bearing_I << normalized_features_provider->feats_per_view.at(idx_view_I).at(feat_I).coords().cast<double>();
-            bearing_J << normalized_features_provider->feats_per_view.at(idx_view_J).at(feat_J).coords().cast<double>();
-            bearing_K << normalized_features_provider->feats_per_view.at(idx_view_K).at(feat_K).coords().cast<double>();
-
-            // initialize intrinsic group of cameras I and J
-            const IndexT intrinsic_index_I = intrinsic_id_remapping.at(view_I->id_intrinsic);
-            const IndexT intrinsic_index_J = intrinsic_id_remapping.at(view_J->id_intrinsic);
-            const IndexT intrinsic_index_K = intrinsic_id_remapping.at(view_K->id_intrinsic);
-
-            // initialize relative translation data container
-            const std::vector<double> feat_cam_I = { bearing_I[0], bearing_I[1], intrinsic_index_I, map_poseId_to_contiguous.at(pose_index_I) };
-            const std::vector<double> feat_cam_J = { bearing_J[0], bearing_J[1], intrinsic_index_J, map_poseId_to_contiguous.at(pose_index_J) };
-            const std::vector<double> feat_cam_K = { bearing_K[0], bearing_K[1], intrinsic_index_K, map_poseId_to_contiguous.at(pose_index_K) };
-
-            // export bearing vector in the triplet pose ordering
-            std::vector<std::vector< double > > tmp(3);
-            tmp[map_poseId_to_contiguous.at(pose_index_I)]= std::move(feat_cam_I);
-            tmp[map_poseId_to_contiguous.at(pose_index_J)]= std::move(feat_cam_J);
-            tmp[map_poseId_to_contiguous.at(pose_index_K)]= std::move(feat_cam_K);
-            featsAndRigIdPerTrack.emplace_back( std::move(tmp) );
-            sampleToTrackId[ sampleToTrackId.size() ] = iterTracks->first;
-          }
-        }
-      }
+      // export bearing vector in the triplet pose ordering
+      tmp[track_cpt]= std::move(feat_cam_I);
     }
+    featsAndRigIdPerTrack.emplace_back( std::move(tmp) );
+    sampleToTrackId[ sampleToTrackId.size() ] = iterTracks->first;
   }
   // set thresholds for relative translation estimation
   const size_t  ORSA_ITER = 1024; // max number of iterations of AC-RANSAC
@@ -874,7 +838,7 @@ bool GlobalSfMRig_Translation_AveragingSolver::Estimate_T_triplet(
     rigTrackTisXisTrifocalSolver,
     rigTrackTrifocalTensorModel> KernelType;
 
-#ifdef USE_L_INFINITY_TRANSLATION
+#if USE_L_INFINITY_TRANSLATION
   KernelType kernel(featsAndRigIdPerTrack, vec_global_R_Triplet, rigRotations, rigOffsets,
                     ThresholdUpperBound/minFocal, image_size);
 #else

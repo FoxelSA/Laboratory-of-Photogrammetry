@@ -37,6 +37,7 @@
 
 #include "./sfm_robust_relative_pose_rig.hpp"
 #include "openMVG/multiview/projection.hpp"
+#include "openMVG/multiview/essential.hpp"
 #include "../external/testing/testing.h"
 
 #include "./test_data_sets.hpp"
@@ -59,10 +60,10 @@ TEST(GeRelativePose, GeRelativePose_Kernel) {
   int principal_Point = 0;
 
   // initialize structure
-  const size_t nPoses = 3;
+  const size_t nPoses = 5;
   const size_t rig_size = 2;
   const size_t nViews = rig_size * nPoses;
-  const size_t nbPoints = SolverType::MINIMUM_SAMPLES;
+  const size_t nbPoints = 12;
 
   //-- Setup a circular camera rig and assert that GE relative pose works.
   const NPoseDataSet d = NRealisticPosesRing(nPoses, nViews, rig_size, nbPoints,
@@ -112,65 +113,84 @@ TEST(GeRelativePose, GeRelativePose_Kernel) {
   // evaluate models
   for(int n=0 ; n < nPoses ; ++n )
   {
-    for(int i=n+1; i < nPoses; ++i )  // iterate on poses
+    // initialize structures used for matching between rigs
+    opengv::bearingVectors_t bearingVectorsRigOne, bearingVectorsRigTwo;
+    std::vector<int> camCorrespondencesRigOne, camCorrespondencesRigTwo;
+
+    for(int j=0; j < nbPoints; ++j )  // iteration on 3D points
     {
-      // initialize structures used for matching between rigs
-      opengv::bearingVectors_t bearingVectorsRigOne, bearingVectorsRigTwo;
-      std::vector<int> camCorrespondencesRigOne, camCorrespondencesRigTwo;
-
-      for(int j=0; j < nbPoints; ++j )  // iteration on 3D points
+      for(int k=0; k < rig_size; ++k )  // iteration on subcamera of first rig
       {
-        for(int k=0; k < rig_size; ++k )  // iteration on subcamera of first rig
+        for( int l=0; l < rig_size; ++l )  // iterations on subcamera of second rig
         {
-          for( int l=0; l < rig_size; ++l )  // iterations on subcamera of second rig
-          {
-            // update sub camera index lists
-            camCorrespondencesRigOne.push_back(k);
-            camCorrespondencesRigTwo.push_back(l);
+          // update sub camera index lists
+          camCorrespondencesRigOne.push_back(k);
+          camCorrespondencesRigTwo.push_back(l);
 
-            // update bearing vectors lists
-            opengv::bearingVector_t  bearing_vector_0;
-            opengv::bearingVector_t  bearing_vector_1;
+          // update bearing vectors lists
+          opengv::bearingVector_t  bearing_vector_0;
+          opengv::bearingVector_t  bearing_vector_1;
 
-            bearing_vector_0 << d2._x[n*rig_size+k].col(j)(0), d2._x[n*rig_size+k].col(j)(1), 1.0;
-            bearing_vector_1 << d2._x[i*rig_size+l].col(j)(0), d2._x[i*rig_size+l].col(j)(1), 1.0;
+          bearing_vector_0 << d2._x[n*rig_size+k].col(j)(0),
+                              d2._x[n*rig_size+k].col(j)(1),
+                              1.0;
+          bearing_vector_1 << d2._x[(n+1)%nPoses*rig_size+l].col(j)(0),
+                              d2._x[(n+1)%nPoses*rig_size+l].col(j)(1),
+                              1.0;
 
-            bearing_vector_0.normalize();
-            bearing_vector_1.normalize();
-            bearingVectorsRigOne.push_back( bearing_vector_0 );
-            bearingVectorsRigTwo.push_back( bearing_vector_1 );
-          }
+          bearing_vector_0.normalize();
+          bearing_vector_1.normalize();
+
+          bearingVectorsRigOne.push_back( bearing_vector_0 );
+          bearingVectorsRigTwo.push_back( bearing_vector_1 );
         }
       }
+    }
 
-      // Define kernel
-      typedef openMVG::robust::ACKernelAdaptorRigPose<
+    // Define kernel
+    typedef openMVG::robust::ACKernelAdaptorRigPose<
            SolverType,
            openMVG::noncentral::kernel::RigAngularError,
            transformation_t>
            KernelType;
 
-      KernelType kernel(  bearingVectorsRigOne,
-                          bearingVectorsRigTwo,
-                          camCorrespondencesRigOne,
-                          camCorrespondencesRigTwo,
-                          offsets,
-                          rotations);
+    KernelType kernel(  bearingVectorsRigOne,
+                        bearingVectorsRigTwo,
+                        camCorrespondencesRigOne,
+                        camCorrespondencesRigTwo,
+                        offsets,
+                        rotations);
 
-      std::vector<opengv::transformation_t> models;
-      vector<size_t> samples;
+    std::vector<opengv::transformation_t> models;
+    vector<size_t> samples;
 
-      for (size_t k = 0; k < bearingVectorsRigOne.size(); ++k) {
-         samples.push_back(k);
-       }
+    for (size_t k = 0; k < bearingVectorsRigOne.size(); ++k) {
+      samples.push_back(k);
+    }
 
-       kernel.Fit(samples, &models);
-       d2._R[i] = models[0].block<3,3>(0,0).transpose() * d._R[n] ;
-       d2._C[i] = d._R[n].transpose() * models[0].col(3) + d._C[n];
-     }
+    kernel.Fit(samples, &models);
+    d2._R[n] = models[0].block<3,3>(0,0).transpose();
+    d2._t[n] = -d2._R[n] * models[0].col(3);
+    d2._C[n] = models[0].col(3);
   }
-  d2.ExportToPLY("test_After_Pose_Estimation.ply");
 
+  // Assert that found relative motion is correct for almost one model.
+  bool bsolution_found = false;
+  for (size_t n = 0; n < nPoses; ++n) {
+    //-- Compute Ground Truth motion
+    Mat3 R;
+    Vec3 t;
+    RelativeCameraMotion(d._R[n], d._t[n], d._R[(n+1)%nPoses], d._t[(n+1)%nPoses], &R, &t);
+
+    // Check that we find the correct relative orientation.
+    if (FrobeniusDistance(R, d2._R[n]) < 5e-2
+      && (t / t.norm() - d2._t[n] / d2._t[n].norm()).norm() < 1e-2 ) {
+        bsolution_found = true;
+      }
+  }
+
+  //-- Almost one solution must find the correct relative orientation
+  CHECK(bsolution_found);
 }
 
 TEST(GeRelativePose, GeRelativePose_Kernel_K ) {
