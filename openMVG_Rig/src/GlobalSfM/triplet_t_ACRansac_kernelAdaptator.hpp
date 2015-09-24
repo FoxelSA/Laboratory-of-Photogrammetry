@@ -37,7 +37,7 @@
  */
 
 #pragma once
-#define USE_L_INFINITY_TRANSLATION 0
+#define USE_L_INFINITY_TRANSLATION 1
 
 #include "./triplet_t_solver_rig.hpp"
 #include "openMVG/numeric/numeric.h"

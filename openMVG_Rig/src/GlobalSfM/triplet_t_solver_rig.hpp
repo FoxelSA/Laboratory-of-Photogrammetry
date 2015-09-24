@@ -200,11 +200,11 @@ void EncodeRigCiXi
 
   assert(Nrig == Ri.size());
 
-  A.resize( 6 * Nobs, Nobs + 3*Nrig );
+  A.resize( 3 * Nobs * (Nobs-1), Nobs + 3*Nrig );
 
-  C.resize( 6 * Nobs, 1);
+  C.resize( 3 * Nobs * (Nobs-1), 1);
   C.fill(0.0);
-  vec_sign.resize(6 * Nobs );
+  vec_sign.resize(3 * Nobs * (Nobs-1));
 
   const size_t transStart = 0;
   const size_t pointStart = transStart + 3*Nrig;
@@ -229,9 +229,11 @@ void EncodeRigCiXi
   // Add the cheirality conditions (R_c*R_i*X_j + R_c*T_i + t_c)_3 + Z_ij >= 1
   for (size_t k = 0; k < Nobs-1 ; ++k)
   {
+    for (size_t l = k+1; l < Nobs; ++l)
+    {
       // define pose index
       const size_t  pose_I = k;
-      const size_t  pose_J = k+1;
+      const size_t  pose_J = l;
 
       // we assume here that each track is of length 3
       // extract bearing vectors
@@ -280,7 +282,7 @@ void EncodeRigCiXi
       *
       ****************************************************************
       */
-      if( pointIndex_J == pointIndex_I )
+      if( pointIndex_J == pointIndex_I && pose_index_I != pose_index_J )
       {
         // encode matrix
         for( int i=0 ; i < 3 ; ++i )  // loop on componant of translation
@@ -316,6 +318,7 @@ void EncodeRigCiXi
           C(rowpos) = -sigma - R_c0(i) + R_c1(i);
           vec_sign[rowpos] = openMVG::linearProgramming::LP_Constraints::LP_GREATER_OR_EQUAL;
           ++rowpos;
+        }
       }
     }
   }
