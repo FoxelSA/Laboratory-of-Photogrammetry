@@ -652,12 +652,9 @@ bool GlobalSfMRig_Translation_AveragingSolver::Estimate_T_triplet(
   // List matches that belong to the triplet of poses
   PairWiseMatches map_triplet_matches;
   std::map<IndexT, IndexT> intrinsic_id_remapping;
-  std::set<IndexT> set_pose_ids;
   std::set<IndexT> used_view;
 
-  set_pose_ids.insert(poses_id.i);
-  set_pose_ids.insert(poses_id.j);
-  set_pose_ids.insert(poses_id.k);
+  const std::set<IndexT> set_pose_ids = {poses_id.i, poses_id.j, poses_id.k};
   // List shared correspondences (pairs) between poses
   for (const auto & match_iterator : matches_provider->_pairWise_matches)
   {
@@ -828,14 +825,14 @@ bool GlobalSfMRig_Translation_AveragingSolver::Estimate_T_triplet(
     sampleToTrackId[ sampleToTrackId.size() ] = iterTracks->first;
   }
   // set thresholds for relative translation estimation
-  const size_t  ORSA_ITER = 1024; // max number of iterations of AC-RANSAC
+  const size_t  ORSA_ITER = 320; // max number of iterations of AC-RANSAC
 
   // compute model
   typedef  rigTrackTisXisTrifocalSolver  SolverType;
 
   typedef rig_TrackTrifocalKernel_ACRansac_N_tisXis<
-    rigTrackTisXisTrifocalSolver,
-    rigTrackTisXisTrifocalSolver,
+    SolverType,
+    SolverType,
     rigTrackTrifocalTensorModel> KernelType;
 
 #if USE_L_INFINITY_TRANSLATION
@@ -847,7 +844,7 @@ bool GlobalSfMRig_Translation_AveragingSolver::Estimate_T_triplet(
 #endif
 
   rigTrackTrifocalTensorModel T;
-  std::pair<double,double> acStat = robust::ACRANSAC_RIG(kernel, vec_inliers, ORSA_ITER, &T, dPrecision/minFocal, false );
+  const std::pair<double,double> acStat = robust::ACRANSAC_RIG(kernel, vec_inliers, ORSA_ITER, &T, dPrecision/minFocal, false );
   // If robust estimation fail => stop.
   if (dPrecision == std::numeric_limits<double>::infinity())
     return false;
@@ -859,8 +856,8 @@ bool GlobalSfMRig_Translation_AveragingSolver::Estimate_T_triplet(
 
   // update inlier track list
   std::set <size_t>  inliers_tracks;
-  for( size_t i = 0 ; i < vec_inliers.size() ; ++i )
-      inliers_tracks.insert( sampleToTrackId.at(vec_inliers[i]) );
+  for (size_t i = 0 ; i < vec_inliers.size() ; ++i)
+    inliers_tracks.insert( sampleToTrackId.at(vec_inliers[i]) );
 
   // use move_iterator to convert the set to the vector directly ?
   std::vector <size_t>(std::make_move_iterator(inliers_tracks.begin()),
@@ -876,7 +873,7 @@ bool GlobalSfMRig_Translation_AveragingSolver::Estimate_T_triplet(
   tiny_scene.poses[poses_id.k] = Pose3(vec_global_R_Triplet[2], -vec_global_R_Triplet[2].transpose() * T.t3 );
 
   // insert views used by the relative pose pairs
-  for (const auto & pairIterator : map_triplet_matches )
+  for (const auto & pairIterator : map_triplet_matches)
   {
     // initialize camera indexes
     const IndexT I = pairIterator.first.first;
@@ -943,20 +940,21 @@ bool GlobalSfMRig_Translation_AveragingSolver::Estimate_T_triplet(
   }
 #endif
 
-  // if there is more than 1/3 of inliers, keep model
   Vec3  C1 = -vec_global_R_Triplet[0] * vec_global_R_Triplet[1].transpose() * T.t2;
   Vec3  C2 = -vec_global_R_Triplet[0] * vec_global_R_Triplet[2].transpose() * T.t3;
 
   // check that all components of C1 and C2 have differents order of magnitude
-  const double  C1_norm_inf = std::max( abs(C1(0)), std::max( abs(C1(1)), abs(C1(2))) );
-  const double  C2_norm_inf = std::max( abs(C2(0)), std::max( abs(C2(1)), abs(C2(2))) );
+  const double  C1_norm_inf = C1.lpNorm<Eigen::Infinity>();
+  const double  C2_norm_inf = C2.lpNorm<Eigen::Infinity>();
   const bool   bNorm = ( C1_norm_inf > 1.0e-2) && (C2_norm_inf > 1.0e-2) ;
 
   // normalize and compute the smallest order of magnitude
   C1 /= C1_norm_inf ; C2 /= C2_norm_inf;
-  const double  C1_min_magn = std::min( abs(C1(0)), std::min( abs(C1(1)), abs(C1(2))) );
-  const double  C2_min_magn = std::min( abs(C2(0)), std::min( abs(C2(1)), abs(C2(2))) );
+  const double  C1_min_magn = C1.cwiseAbs().minCoeff();
+  const double  C2_min_magn = C2.cwiseAbs().minCoeff();
 
+  // if there is more than 1/3 of inliers, keep model
+  // reject small motion since they are not stable
   const bool bTest =  ( vec_inliers.size() > 0.33 * rig_tracks.size()  // consider only model with good inlier proportion
                         && vec_inliers.size() > 30 * rigSize           // there must be enough tracks
                         && bNorm                                       // the distance between rigs should be at least 10[cm]
