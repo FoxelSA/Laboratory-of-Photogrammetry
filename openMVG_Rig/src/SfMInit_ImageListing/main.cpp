@@ -194,7 +194,7 @@ int main(int argc, char **argv)
            std::vector<std::string> vec_image = stlplus::folder_files( sImageDir );
 
            // load kept channel
-           std::vector< li_Size_t > keptChan;
+           std::set< li_Size_t > keptChan;
            loadChannelFile( keptChan, sChannelFile );
 
            bool isExported = false;

@@ -94,7 +94,7 @@ using namespace std;
 * This function checks that given timestamp range is valid
 *
 * \param sTimestampLow  Lower bound for timestamp value
-* \param sTimestampUp   Upper bound for timestampe value
+* \param sTimestampUp   Upper bound for timestamp value
 *
 * \return bool value indicating if the timestamp range is valid or not
 */
@@ -177,7 +177,7 @@ bool  loadCalibrationData( std::vector< sensorData >  & vec_sensorData,
  * \return The list of kept channel if vector keptChan
  */
 
-void loadChannelFile( std::vector< li_Size_t >  & keptChan,
+void loadChannelFile( std::set< li_Size_t >  & keptChan,
                     const std::string & sChannelFile );
 
 
@@ -208,7 +208,7 @@ void loadChannelFile( std::vector< li_Size_t >  & keptChan,
 bool computeInstrinsicPerImages(
                       std::vector<std::string> & vec_image,
                       const std::vector< sensorData > & vec_sensorData,
-                      const std::vector< li_Size_t >  & keptChan,
+                      const std::set< li_Size_t >  & keptChan,
                       const std::string & sImageDir,
                       const std::string & sOutputDir,
                       const std::string & sGpsFile,

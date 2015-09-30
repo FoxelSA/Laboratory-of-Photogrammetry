@@ -54,6 +54,8 @@
 #include <progress/progress.hpp>
 #include <stlplus3/filesystemSimplified/file_system.hpp>
 
+#undef OPENMVG_USE_OPENMP
+
 using namespace std;
 
 /*******************************************************************************
@@ -86,11 +88,11 @@ bool isRangeValid(  const std::string& sTimestampLow,
   // check that each character of timestamp are digits
   bool  bIsAlpha = false ;
 
-  // check thaht all informations of timestamp bound are digits, excepts the separator
+  // check that all informations of timestamp bound are digits, excepts the separator
   for( size_t l = 0 ; l < 2 ; ++l )
   {
       int i = 0 ;
-      // check that lower bound timstamp is composed of digits only
+      // check that lower bound timestamp is composed of digits only
       while (splitLow[l][i])
       {
           if ( !std::isdigit(splitLow[l][i]))
@@ -100,7 +102,7 @@ bool isRangeValid(  const std::string& sTimestampLow,
           i++;
       }
 
-      // check that upper bound timstamp is composed of digits only
+      // check that upper bound timestamp is composed of digits only
       i=0;
       while (splitUp[l][i])
       {
@@ -325,7 +327,7 @@ bool  loadCalibrationData(  std::vector< sensorData >  & vec_sensorData,
 *
 *********************************************************************/
 
-void loadChannelFile( std::vector< li_Size_t >  & keptChan,
+void loadChannelFile( std::set< li_Size_t >  & keptChan,
                       const std::string & sChannelFile )
 {
     // if channel file is given, read it
@@ -338,7 +340,7 @@ void loadChannelFile( std::vector< li_Size_t >  & keptChan,
         {
             while( inFile >> chan ) // one channel per line
             {
-                keptChan.push_back(chan);
+                keptChan.insert(chan);
             }
 
             if( keptChan.size() == 0 )
@@ -561,7 +563,7 @@ void keepRepresentativeRigs(
 bool computeInstrinsicPerImages(
               std::vector<std::string> & vec_image,
               const std::vector< sensorData > & vec_sensorData,
-              const std::vector< li_Size_t >  & keptChan,
+              const std::set< li_Size_t >  & keptChan,
               const std::string & sImageDir,
               const std::string & sOutputDir,
               const std::string & sGpsFile,
@@ -620,11 +622,19 @@ bool computeInstrinsicPerImages(
           // extract channel information from image name
           splitted_name.clear();
 
+#ifdef OLD_IMAGE_FILENAME_FORMAT
           stl::split( *iter_image, "-", splitted_name );
           sensor_index = atoi(splitted_name[1].c_str());
 
           // now load image information and keep channel index and timestamp
           timestamp = splitted_name[0];
+#else // NEW filename 
+          stl::split( *iter_image, "_", splitted_name );
+          sensor_index = atoi(splitted_name[2].c_str());
+
+          // now load image information and keep channel index and timestamp
+          timestamp = splitted_name[0] + "_" + splitted_name[1];
+#endif
 
           #ifdef OPENMVG_USE_OPENMP
             #pragma omp critical
@@ -660,11 +670,7 @@ bool computeInstrinsicPerImages(
           }
           else
           {
-              for( i = 0 ; i < keptChan.size() ; ++i )
-              {
-                  if( sensor_index == keptChan[i] )
-                      bKeepChannel = true;
-              }
+              bKeepChannel = keptChan.count(sensor_index) > 0;
           }
 
           // export only kept channel
